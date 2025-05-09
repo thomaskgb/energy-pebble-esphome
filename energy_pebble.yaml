@@ -2,7 +2,21 @@
 esphome:
   name: energy-pebble
   friendly_name: Energy Pebble
-
+  on_boot:
+    then:
+      - light.turn_on:
+          id: ring_leds
+          brightness: 50%
+          red: 100%
+          green: 100%
+          blue: 100%
+      - light.turn_on:
+          id: center_led
+          brightness: 100%
+          red: 0%
+          green: 100%
+          blue: 0%
+          
 esp32:
   board: lolin_c3_mini
   framework:
@@ -19,6 +33,6 @@ time:
 # Include all component configuratioN
 packages:
   connectivity: !include components/connectivity.yaml
-  api: !include components/api.yaml
-  # leds: !include components/leds.yaml
+  leds: !include components/leds.yaml
+  # api: !include components/api.yaml
   # controls: !include components/controls.yaml
