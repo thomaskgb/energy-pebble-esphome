@@ -1,0 +1,34 @@
+# ESP32 RMT setup for the NeoPixel ring
+light:
+  - platform: esp32_rmt_led_strip
+    id: led_matrix
+    rgb_order: GRB
+    pin: GPIO06
+    num_leds: 25
+    rmt_channel: 0
+    chipset: ws2812
+    internal: true
+
+  - platform: partition
+    name: "Ring LEDs"
+    id: ring_leds
+    segments:
+      - id: led_matrix
+        from: 0
+        to: 23
+    restore_mode: ALWAYS_ON
+    effects: []
+
+  - platform: partition
+    name: "Center LED"
+    id: center_led
+    segments:
+      - id: led_matrix
+        from: 24
+        to: 24
+    restore_mode: ALWAYS_ON
+    effects: []
+
+
+
+
