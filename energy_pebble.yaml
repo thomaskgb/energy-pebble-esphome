@@ -1,0 +1,24 @@
+# Energy Pebble - Main Configuration
+esphome:
+  name: energy-pebble
+  friendly_name: Energy Pebble
+
+esp32:
+  board: lolin_c3_mini
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Time component for synchronization
+time:
+  - platform: sntp
+    id: system_time
+
+# Include all component configuratioN
+packages:
+  connectivity: !include components/connectivity.yaml
+  api: !include components/api.yaml
+  # leds: !include components/leds.yaml
+  # controls: !include components/controls.yaml
