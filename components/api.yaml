@@ -1,0 +1,102 @@
+# API component for Energy Pebble
+# Fetches color codes from energypebble.tdlx.nl
+
+# HTTP request component to fetch color codes
+http_request:
+  useragent: "ESPHome/1.0 Energy-Pebble"
+  timeout: 10s
+  verify_ssl: false
+  id: http_request_data
+
+# Global variables to store the fetched data
+globals:
+  - id: current_hour_color
+    type: std::string
+    initial_value: '"G"'
+  - id: api_last_update
+    type: unsigned long
+    initial_value: '0'
+  - id: api_fetch_success
+    type: bool
+    initial_value: 'false'
+
+# Text sensors to expose the data
+text_sensor:
+  - platform: template
+    name: "Current Hour Color Code"
+    id: current_color_code
+    lambda: |-
+      return id(current_hour_color);
+    update_interval: 30s
+
+  - platform: template
+    name: "API Status"
+    id: api_status
+    lambda: |-
+      if (id(api_fetch_success)) {
+        return std::string("Connected");
+      } else {
+        return std::string("Error");
+      }
+
+# Button to manually trigger API fetch
+button:
+  - platform: template
+    name: "Refresh Color Codes"
+    id: refresh_colors
+    on_press:
+      - script.execute: fetch_color_codes
+
+# Interval to automatically fetch data every 15 minutes
+interval:
+  - interval: 15min
+    then:
+      - script.execute: fetch_color_codes
+
+# Script to fetch and parse color codes
+script:
+  - id: fetch_color_codes
+    then:
+      - logger.log: "Fetching color codes from API..."
+      - http_request.get:
+          id: http_request_data
+          url: "https://energypebble.tdlx.nl/api/color-code"
+          headers:
+            Content-Type: "application/json"
+          on_response:
+            then:
+              - logger.log:
+                  format: "Response status: %d"
+                  args: [response->status_code]
+              - if:
+                  condition:
+                    lambda: 'return response->status_code == 200;'
+                  then:
+                    - logger.log: "API fetch successful"
+                    - lambda: |-
+                        // Log successful response
+                        ESP_LOGD("API", "HTTP 200 OK - parsing response");
+                        id(api_fetch_success) = true;
+                        id(api_last_update) = millis();
+                        
+                        // For now, just set a default color until we can access response body
+                        // TODO: Parse actual JSON when we figure out the correct API
+                        id(current_hour_color) = "G";
+                        ESP_LOGD("API", "Set default color code: G");
+                  else:
+                    - logger.log: "API fetch failed"
+                    - lambda: |-
+                        id(api_fetch_success) = false;
+                        ESP_LOGE("API", "HTTP request failed with status: %d", response->status_code);
+
+# Sensor to track last successful update
+sensor:
+  - platform: template
+    name: "Minutes Since Last Update"
+    lambda: |-
+      if (id(api_last_update) > 0) {
+        return (millis() - id(api_last_update)) / 60000.0;
+      }
+      return -1.0;
+    update_interval: 60s
+    unit_of_measurement: "min"
