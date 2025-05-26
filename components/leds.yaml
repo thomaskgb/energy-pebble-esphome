@@ -1,7 +1,7 @@
 # ESP32 RMT setup for the NeoPixel ring
 light:
   - platform: esp32_rmt_led_strip
-    id: led_matrix
+    id: led_ring
     rgb_order: GRB
     pin: GPIO06
     num_leds: 25
@@ -9,24 +9,76 @@ light:
     chipset: ws2812
     internal: true
 
-  - platform: partition
-    name: "Ring LEDs"
-    id: ring_leds
-    segments:
-      - id: led_matrix
-        from: 0
-        to: 23
-    restore_mode: RESTORE_AND_ON
-
+# Center LED (LED 24)
   - platform: partition
     name: "Center LED"
     id: center_led
     segments:
-      - id: led_matrix
+      - id: led_ring
         from: 24
         to: 24
-    restore_mode: RESTORE_AND_ON
 
+# 8 Ring Segments (3 LEDs each: 0–2, 3–5, ..., 21–23)
+  - platform: partition
+    name: "Ring Segment 1"
+    id: ring_segment_1
+    segments:
+      - id: led_ring
+        from: 0
+        to: 2
 
+  - platform: partition
+    name: "Ring Segment 2"
+    id: ring_segment_2
+    segments:
+      - id: led_ring
+        from: 3
+        to: 5
 
+  - platform: partition
+    name: "Ring Segment 3"
+    id: ring_segment_3
+    segments:
+      - id: led_ring
+        from: 6
+        to: 8
 
+  - platform: partition
+    name: "Ring Segment 4"
+    id: ring_segment_4
+    segments:
+      - id: led_ring
+        from: 9
+        to: 11
+
+  - platform: partition
+    name: "Ring Segment 5"
+    id: ring_segment_5
+    segments:
+      - id: led_ring
+        from: 12
+        to: 14
+
+  - platform: partition
+    name: "Ring Segment 6"
+    id: ring_segment_6
+    segments:
+      - id: led_ring
+        from: 15
+        to: 17
+
+  - platform: partition
+    name: "Ring Segment 7"
+    id: ring_segment_7
+    segments:
+      - id: led_ring
+        from: 18
+        to: 20
+
+  - platform: partition
+    name: "Ring Segment 8"
+    id: ring_segment_8
+    segments:
+      - id: led_ring
+        from: 21
+        to: 23

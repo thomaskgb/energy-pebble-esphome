@@ -3,19 +3,16 @@ esphome:
   name: energy-pebble
   friendly_name: Energy Pebble
   on_boot:
-    then:
-      - light.turn_on:
-          id: ring_leds
-          brightness: 50%
-          red: 100%
-          green: 100%
-          blue: 100%
-      - light.turn_on:
-          id: center_led
-          brightness: 100%
-          red: 0%
-          green: 100%
-          blue: 0%
+    - then:
+        - light.turn_on: { id: center_led, brightness: 100%, red: 0, green: 100%, blue: 0 } # Green
+        - light.turn_on: { id: ring_segment_1, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_2, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_3, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_4, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_5, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_6, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_7, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+        - light.turn_on: { id: ring_segment_8, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
           
 esp32:
   board: lolin_c3_mini
@@ -34,5 +31,5 @@ time:
 packages:
   connectivity: !include components/connectivity.yaml
   leds: !include components/leds.yaml
-  # api: !include components/api.yaml
+  api: !include components/api.yaml
   # controls: !include components/controls.yaml
