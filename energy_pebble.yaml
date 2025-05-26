@@ -2,32 +2,34 @@
 esphome:
   name: energy-pebble
   friendly_name: Energy Pebble
+  # Disable safe mode to prevent unexpected behavior
   on_boot:
-    - then:
-        - light.turn_on: { id: center_led, brightness: 100%, red: 0, green: 100%, blue: 0 } # Green
-        - light.turn_on: { id: ring_segment_1, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_2, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_3, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_4, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_5, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_6, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_7, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
-        - light.turn_on: { id: ring_segment_8, brightness: 40%, red: 100%, green: 50%, blue: 0 } # Orange
+    priority: 600
+    then:
+      - logger.log: "Energy Pebble booted successfully"
+      - delay: 5s
+      - logger.log: "Boot delay completed - system stable"
           
 esp32:
   board: lolin_c3_mini
   framework:
     type: arduino
 
-# Enable logging
+# Enable logging with reduced verbosity to prevent log spam
 logger:
+  level: DEBUG
+  logs:
+    component: ERROR
+    web_server: ERROR
+    light: ERROR  # Silence verbose LED logging
+    esp32_rmt_led_strip: ERROR
 
 # Time component for synchronization
 time:
   - platform: sntp
     id: system_time
 
-# Include all component configuratioN
+# Include all component configuration
 packages:
   connectivity: !include components/connectivity.yaml
   leds: !include components/leds.yaml
