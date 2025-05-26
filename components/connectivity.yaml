@@ -13,6 +13,14 @@ wifi:
     ssid: "Energy Pebble"
     password: !secret fallback_password
 
+
+  on_connect:
+    - delay: 2s  # Small delay to ensure connection is stable
+    - logger.log:
+        level: INFO
+        format: "WiFi connected - triggering initial API call"
+    - script.execute: simple_api_call
+
 captive_portal:
 
 # Web server for configuration and manual control
