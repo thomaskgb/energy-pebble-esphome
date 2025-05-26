@@ -28,24 +28,25 @@ text_sensor:
     id: current_color_code
     lambda: |-
       return id(current_hour_color);
-    update_interval: 30s
+    update_interval: 60s
 
   - platform: template
     name: "Next 12 Hours Colors"
     id: next_12_hours_colors
     lambda: |-
       return id(next_12_hours);
-    update_interval: 30s
+    update_interval: 60s
 
   - platform: template
     name: "API Status"
     id: api_status
     lambda: |-
       if (id(api_fetch_success)) {
-        return std::string("Connected");
+        return std::string("OK");
       } else {
         return std::string("Error");
       }
+    update_interval: 60s
 
 # Button to manually trigger API fetch
 button:
@@ -55,9 +56,76 @@ button:
     on_press:
       - script.execute: simple_api_call
 
-# Interval to automatically fetch data every 15 minutes
+  - platform: template
+    name: "Update LED Colors"
+    id: update_leds
+    on_press:
+      - script.execute: set_led_colors
+
+  - platform: template
+    name: "Test All LEDs Green"
+    id: test_leds
+    on_press:
+      - logger.log: "Testing all LEDs - setting to green"
+      - light.turn_on:
+          id: center_led
+          brightness: 100%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_1
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_2
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_3
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_4
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_5
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_6
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_7
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+      - light.turn_on:
+          id: ring_segment_8
+          brightness: 40%
+          red: 0%
+          green: 100%
+          blue: 0%
+
+# Interval to automatically fetch data every 15 minutes (with initial delay)
 interval:
   - interval: 15min
+    startup_delay: 60s
     then:
       - script.execute: simple_api_call
 
@@ -65,55 +133,129 @@ interval:
 script:
   - id: simple_api_call
     then:
-      - logger.log: "Making API call..."
-      - http_request.get:
-          id: http_request_data
-          url: "https://energypebble.tdlx.nl/api/color-code"
-          capture_response: true
-          on_response:
-            then:
-              - logger.log: "Got API response"
-              - lambda: |-
-                  if (response->status_code == 200) {
-                    ESP_LOGD("API", "API call successful");
-                    
-                    // Parse JSON to extract color codes
-                    json::parse_json(body, [](JsonObject root) -> bool {
-                      if (root["hour_color_codes"]) {
-                        JsonArray hour_codes = root["hour_color_codes"];
-                        int total_hours = hour_codes.size();
-                        
-                        if (total_hours > 0) {
-                          // Get current hour (first element)
-                          JsonObject first_hour = hour_codes[0];
-                          if (first_hour["color_code"]) {
-                            const char* current_color = first_hour["color_code"];
-                            id(current_hour_color) = std::string(current_color);
-                          }
-                          
-                          // Build string for next 12 hours
-                          std::string next_hours = "";
-                          int hours_to_show = std::min(12, total_hours);
-                          for (int i = 0; i < hours_to_show; i++) {
-                            if (i > 0) next_hours += ",";
-                            JsonObject hour_obj = hour_codes[i];
-                            if (hour_obj["color_code"]) {
-                              const char* color = hour_obj["color_code"];
-                              next_hours += std::string(color);
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - logger.log: 
+                level: INFO
+                format: "WiFi connected - Making API call..."
+            - http_request.get:
+                id: http_request_data
+                url: "https://energypebble.tdlx.nl/api/color-code"
+                capture_response: true
+                on_response:
+                  then:
+                    - logger.log:
+                        level: INFO  
+                        format: "Got API response"
+                    - lambda: |-
+                        if (response->status_code == 200) {
+                          // Parse JSON to extract color codes
+                          json::parse_json(body, [](JsonObject root) -> bool {
+                            if (root["hour_color_codes"]) {
+                              JsonArray hour_codes = root["hour_color_codes"];
+                              int total_hours = hour_codes.size();
+                              
+                              if (total_hours > 0) {
+                                // Get current hour (first element)
+                                JsonObject first_hour = hour_codes[0];
+                                if (first_hour["color_code"]) {
+                                  const char* current_color = first_hour["color_code"];
+                                  id(current_hour_color) = std::string(current_color);
+                                }
+                                
+                                // Build string for next 12 hours
+                                std::string next_hours = "";
+                                int hours_to_show = std::min(12, total_hours);
+                                for (int i = 0; i < hours_to_show; i++) {
+                                  if (i > 0) next_hours += ",";
+                                  JsonObject hour_obj = hour_codes[i];
+                                  if (hour_obj["color_code"]) {
+                                    const char* color = hour_obj["color_code"];
+                                    next_hours += std::string(color);
+                                  }
+                                }
+                                id(next_12_hours) = next_hours;
+                                
+                                id(api_fetch_success) = true;
+                                
+                                // Automatically update LEDs after successful API call
+                                id(set_led_colors).execute();
+                                return true;
+                              }
                             }
-                          }
-                          id(next_12_hours) = next_hours;
-                          
-                          id(api_fetch_success) = true;
-                          ESP_LOGD("API", "Data parsed successfully");
-                          return true;
+                            id(api_fetch_success) = false;
+                            return false;
+                          });
+                        } else {
+                          id(api_fetch_success) = false;
                         }
-                      }
-                      ESP_LOGD("API", "JSON parsing failed");
-                      id(api_fetch_success) = false;
-                      return false;
-                    });
-                  } else {
-                    ESP_LOGD("API", "API call failed");
-                    id(api_fetch_success) = false;
-                  }
+          else:
+            - logger.log:
+                level: INFO
+                format: "WiFi not connected - skipping API call"
+
+  # Script to set LED colors based on API data
+  - id: set_led_colors
+    then:
+      - logger.log:
+          level: INFO
+          format: "Setting LED colors"
+      - lambda: |-
+          // Define color and brightness constants
+          const float center_brightness = 1.0f;
+          const float ring_brightness = 0.4f;
+          
+          // Color definitions (RGB values)
+          const float green_r = 0.0f, green_g = 1.0f, green_b = 0.0f;
+          const float yellow_r = 1.0f, yellow_g = 1.0f, yellow_b = 0.0f;
+          const float red_r = 1.0f, red_g = 0.0f, red_b = 0.0f;
+          
+          // Helper function to set LED color
+          auto set_led = [&](esphome::light::LightState* led, const std::string& color, float brightness) {
+            auto call = led->turn_on();
+            call.set_brightness(brightness);
+            
+            if (color == "G") {
+              call.set_rgb(green_r, green_g, green_b);
+            } else if (color == "Y") {
+              call.set_rgb(yellow_r, yellow_g, yellow_b);
+            } else if (color == "R") {
+              call.set_rgb(red_r, red_g, red_b);
+            } else {
+              call.set_rgb(0.5f, 0.5f, 0.5f); // Default gray
+            }
+            call.perform();
+          };
+          
+          // Parse the comma-separated string to get individual colors
+          std::string colors_str = id(next_12_hours);
+          std::vector<std::string> colors;
+          
+          // Simple string splitting without stringstream
+          size_t start = 0;
+          size_t end = colors_str.find(',');
+          
+          while (end != std::string::npos) {
+            colors.push_back(colors_str.substr(start, end - start));
+            start = end + 1;
+            end = colors_str.find(',', start);
+          }
+          // Add the last color (no comma after it)
+          colors.push_back(colors_str.substr(start));
+          
+          // Set center LED (current hour - index 0)
+          if (!colors.empty()) {
+            set_led(id(center_led), colors[0], center_brightness);
+          }
+          
+          // Set ring segments (next 8 hours - indices 1-8)
+          esphome::light::LightState* segments[] = {
+            id(ring_segment_1), id(ring_segment_2), id(ring_segment_3), id(ring_segment_4),
+            id(ring_segment_5), id(ring_segment_6), id(ring_segment_7), id(ring_segment_8)
+          };
+          
+          for (int i = 0; i < 8 && (i + 1) < colors.size(); i++) {
+            set_led(segments[i], colors[i + 1], ring_brightness);
+          }
