@@ -6,9 +6,15 @@ esphome:
   on_boot:
     priority: 600
     then:
-      - logger.log: "Energy Pebble booted successfully"
+      - logger.log: 
+          level: INFO
+          format: "Energy Pebble booted successfully"
+      - script.execute: boot_led_sequence
       - delay: 5s
-      - logger.log: "Boot delay completed - system stable"
+      - logger.log: 
+          level: INFO
+          format: "Boot delay completed - system stable"
+      - script.execute: simple_api_call
           
 esp32:
   board: lolin_c3_mini
@@ -34,4 +40,5 @@ packages:
   connectivity: !include components/connectivity.yaml
   leds: !include components/leds.yaml
   api: !include components/api.yaml
+  boot: !include components/boot.yaml
   # controls: !include components/controls.yaml

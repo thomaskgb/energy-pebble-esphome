@@ -1,0 +1,120 @@
+# Boot sequence component for Energy Pebble
+# Handles LED animations during startup
+
+# Boot sequence - pulse yellow LEDs during startup
+script:
+  - id: boot_led_sequence
+    then:
+      - logger.log:
+          level: INFO
+          format: "Starting boot LED sequence - pulsing yellow"
+      - while:
+          condition:
+            lambda: 'return !id(leds_set_from_api);'
+          then:
+            # Pulse all LEDs yellow (dim to bright to dim)
+            - light.turn_on:
+                id: center_led
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_1
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_2
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_3
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_4
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_5
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_6
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_7
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_8
+                brightness: 20%
+                red: 100%
+                green: 100%
+                blue: 0%
+                transition_length: 1s
+            - delay: 1s
+            # Brighten to 60%
+            - light.turn_on:
+                id: center_led
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_1
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_2
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_3
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_4
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_5
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_6
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_7
+                brightness: 60%
+                transition_length: 1s
+            - light.turn_on:
+                id: ring_segment_8
+                brightness: 60%
+                transition_length: 1s
+            - delay: 1s
+      - logger.log:
+          level: INFO
+          format: "Boot sequence complete - LEDs set with API colors"
