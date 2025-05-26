@@ -62,72 +62,31 @@ button:
     on_press:
       - script.execute: set_led_colors
 
-  - platform: template
-    name: "Test All LEDs Green"
-    id: test_leds
-    on_press:
-      - logger.log: "Testing all LEDs - setting to green"
-      - light.turn_on:
-          id: center_led
-          brightness: 100%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_1
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_2
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_3
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_4
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_5
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_6
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_7
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-      - light.turn_on:
-          id: ring_segment_8
-          brightness: 40%
-          red: 0%
-          green: 100%
-          blue: 0%
-
 # Interval to automatically fetch data every 15 minutes (with initial delay)
 interval:
   - interval: 15min
     startup_delay: 60s
     then:
       - script.execute: simple_api_call
+
+# Time-based trigger for start of every hour  
+time:
+  - platform: sntp
+    id: api_time
+    on_time:
+      # Trigger at minute 0 of every hour (xx:00:00)
+      - seconds: 0
+        minutes: 0
+        then:
+          - logger.log:
+              level: INFO
+              format: "Top of hour - fetching fresh API data"
+          - script.execute: simple_api_call
+      # Also trigger at minute 1 as backup (xx:01:00) 
+      - seconds: 0
+        minutes: 1
+        then:
+          - script.execute: simple_api_call
 
 # Simple script - call API and log full JSON response
 script:
