@@ -1,32 +1,40 @@
-# API component for Energy Pebble
-# Fetches color codes from energypebble.tdlx.nl
+# API component for Energy Pebble - Using capture_response
+# Based on ESPHome documentation example
 
-# HTTP request component to fetch color codes
+# HTTP request component
 http_request:
-  useragent: "ESPHome/1.0 Energy-Pebble"
-  timeout: 10s
+  useragent: ESPHome
+  timeout: 15s
   verify_ssl: false
   id: http_request_data
+  watchdog_timeout: 15s
 
 # Global variables to store the fetched data
 globals:
   - id: current_hour_color
     type: std::string
     initial_value: '"G"'
-  - id: api_last_update
-    type: unsigned long
-    initial_value: '0'
+  - id: next_12_hours
+    type: std::string
+    initial_value: '"G,G,G,G,G,G,G,G,G,G,G,G"'
   - id: api_fetch_success
     type: bool
     initial_value: 'false'
 
-# Text sensors to expose the data
+# Text sensors to show the data
 text_sensor:
   - platform: template
-    name: "Current Hour Color Code"
+    name: "Current Hour Color"
     id: current_color_code
     lambda: |-
       return id(current_hour_color);
+    update_interval: 30s
+
+  - platform: template
+    name: "Next 12 Hours Colors"
+    id: next_12_hours_colors
+    lambda: |-
+      return id(next_12_hours);
     update_interval: 30s
 
   - platform: template
@@ -42,61 +50,70 @@ text_sensor:
 # Button to manually trigger API fetch
 button:
   - platform: template
-    name: "Refresh Color Codes"
-    id: refresh_colors
+    name: "Test API Call"
+    id: test_api
     on_press:
-      - script.execute: fetch_color_codes
+      - script.execute: simple_api_call
 
 # Interval to automatically fetch data every 15 minutes
 interval:
   - interval: 15min
     then:
-      - script.execute: fetch_color_codes
+      - script.execute: simple_api_call
 
-# Script to fetch and parse color codes
+# Simple script - call API and log full JSON response
 script:
-  - id: fetch_color_codes
+  - id: simple_api_call
     then:
-      - logger.log: "Fetching color codes from API..."
+      - logger.log: "Making API call..."
       - http_request.get:
           id: http_request_data
           url: "https://energypebble.tdlx.nl/api/color-code"
-          headers:
-            Content-Type: "application/json"
+          capture_response: true
           on_response:
             then:
-              - logger.log:
-                  format: "Response status: %d"
-                  args: [response->status_code]
-              - if:
-                  condition:
-                    lambda: 'return response->status_code == 200;'
-                  then:
-                    - logger.log: "API fetch successful"
-                    - lambda: |-
-                        // Log successful response
-                        ESP_LOGD("API", "HTTP 200 OK - parsing response");
-                        id(api_fetch_success) = true;
-                        id(api_last_update) = millis();
+              - logger.log: "Got API response"
+              - lambda: |-
+                  if (response->status_code == 200) {
+                    ESP_LOGD("API", "API call successful");
+                    
+                    // Parse JSON to extract color codes
+                    json::parse_json(body, [](JsonObject root) -> bool {
+                      if (root["hour_color_codes"]) {
+                        JsonArray hour_codes = root["hour_color_codes"];
+                        int total_hours = hour_codes.size();
                         
-                        // For now, just set a default color until we can access response body
-                        // TODO: Parse actual JSON when we figure out the correct API
-                        id(current_hour_color) = "G";
-                        ESP_LOGD("API", "Set default color code: G");
-                  else:
-                    - logger.log: "API fetch failed"
-                    - lambda: |-
-                        id(api_fetch_success) = false;
-                        ESP_LOGE("API", "HTTP request failed with status: %d", response->status_code);
-
-# Sensor to track last successful update
-sensor:
-  - platform: template
-    name: "Minutes Since Last Update"
-    lambda: |-
-      if (id(api_last_update) > 0) {
-        return (millis() - id(api_last_update)) / 60000.0;
-      }
-      return -1.0;
-    update_interval: 60s
-    unit_of_measurement: "min"
+                        if (total_hours > 0) {
+                          // Get current hour (first element)
+                          JsonObject first_hour = hour_codes[0];
+                          if (first_hour["color_code"]) {
+                            const char* current_color = first_hour["color_code"];
+                            id(current_hour_color) = std::string(current_color);
+                          }
+                          
+                          // Build string for next 12 hours
+                          std::string next_hours = "";
+                          int hours_to_show = std::min(12, total_hours);
+                          for (int i = 0; i < hours_to_show; i++) {
+                            if (i > 0) next_hours += ",";
+                            JsonObject hour_obj = hour_codes[i];
+                            if (hour_obj["color_code"]) {
+                              const char* color = hour_obj["color_code"];
+                              next_hours += std::string(color);
+                            }
+                          }
+                          id(next_12_hours) = next_hours;
+                          
+                          id(api_fetch_success) = true;
+                          ESP_LOGD("API", "Data parsed successfully");
+                          return true;
+                        }
+                      }
+                      ESP_LOGD("API", "JSON parsing failed");
+                      id(api_fetch_success) = false;
+                      return false;
+                    });
+                  } else {
+                    ESP_LOGD("API", "API call failed");
+                    id(api_fetch_success) = false;
+                  }
