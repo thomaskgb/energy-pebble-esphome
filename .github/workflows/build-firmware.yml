@@ -53,36 +53,14 @@ jobs:
           ls -la .esphome/build/energy-pebble/.pioenvs/energy-pebble/
           echo "Firmware build completed successfully!"
             
-      - name: Checkout target repo
-        uses: actions/checkout@v4
-        with:
-          repository: thomaskgb/energy-pebble-api
-          token: ${{ secrets.API_REPO_TOKEN }}
-          path: api-repo
-          
-      - name: Copy firmware to API repo
+      - name: Upload firmware via API
         run: |
-          mkdir -p api-repo/firmware
-          cp firmware/energy-pebble-${{ steps.version.outputs.version }}.bin \
-            api-repo/firmware/
-          # Note: We only need the .bin file for OTA updates
-            
-      - name: Create version info file
-        run: |
-          cat > api-repo/firmware/latest.json << EOF
-          {
-            "version": "${{ steps.version.outputs.version }}",
-            "filename": "energy-pebble-${{ steps.version.outputs.version }}.bin",
-            "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "git_commit": "${{ github.sha }}"
-          }
-          EOF
-          
-      - name: Commit and push to API repo
-        run: |
-          cd api-repo
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add firmware/
-          git commit -m "feat: Add firmware version ${{ steps.version.outputs.version }}"
-          git push
+          # Upload firmware to the API server using the admin endpoint
+          curl -X POST "https://energypebble.tdlx.nl/api/firmware/upload" \
+            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
+            -F "version=${{ steps.version.outputs.version }}" \
+            -F "firmware=@firmware/energy-pebble-${{ steps.version.outputs.version }}.bin" \
+            -F "git_commit=${{ github.sha }}" \
+            -F "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --fail-with-body \
+            -v
