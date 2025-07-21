@@ -1,0 +1,89 @@
+name: Build and Deploy Firmware
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.2.0
+
+env:
+  ESPHOME_VERSION: "2024.6.0"
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install ESPHome
+        run: |
+          pip install esphome==${{ env.ESPHOME_VERSION }}
+          
+      - name: Create secrets file
+        run: |
+          cp secrets_template.yaml secrets.yaml
+          # Add dummy values for build (not used in final firmware)
+          echo 'wifi_ssid: "dummy"' >> secrets.yaml
+          echo 'wifi_password: "dummy"' >> secrets.yaml
+          echo 'ota_password: "dummy"' >> secrets.yaml
+          echo 'fallback_password: "dummy"' >> secrets.yaml
+          
+      - name: Build firmware
+        run: |
+          esphome compile energy_pebble.yaml \
+            -s version "${{ steps.version.outputs.version }}"
+            
+      - name: Prepare firmware files
+        run: |
+          mkdir -p firmware
+          cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.ota.bin \
+            firmware/energy-pebble-${{ steps.version.outputs.version }}.bin
+          cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.elf \
+            firmware/energy-pebble-${{ steps.version.outputs.version }}.elf
+            
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: thomaskgb/energy-pebble-api
+          token: ${{ secrets.API_REPO_TOKEN }}
+          path: api-repo
+          
+      - name: Copy firmware to API repo
+        run: |
+          mkdir -p api-repo/firmware
+          cp firmware/energy-pebble-${{ steps.version.outputs.version }}.bin \
+            api-repo/firmware/
+          cp firmware/energy-pebble-${{ steps.version.outputs.version }}.elf \
+            api-repo/firmware/
+            
+      - name: Create version info file
+        run: |
+          cat > api-repo/firmware/latest.json << EOF
+          {
+            "version": "${{ steps.version.outputs.version }}",
+            "filename": "energy-pebble-${{ steps.version.outputs.version }}.bin",
+            "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "git_commit": "${{ github.sha }}"
+          }
+          EOF
+          
+      - name: Commit and push to API repo
+        run: |
+          cd api-repo
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add firmware/
+          git commit -m "feat: Add firmware version ${{ steps.version.outputs.version }}"
+          git push

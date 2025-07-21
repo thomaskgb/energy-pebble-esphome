@@ -2,6 +2,9 @@
 esphome:
   name: energy-pebble
   friendly_name: Energy Pebble
+  project:
+    name: "thomaskgb.energy-pebble"
+    version: "${version}"
   # Disable safe mode to prevent unexpected behavior
   on_boot:
     priority: 600
@@ -15,9 +18,9 @@ esphome:
           level: INFO
           format: "Boot delay completed - system stable"
       - script.execute: simple_api_call
-          
+
 esp32:
-  board: lolin_c3_mini
+  board: esp32-s3-devkitc-1
   framework:
     type: arduino
 
@@ -41,4 +44,5 @@ packages:
   leds: !include components/leds.yaml
   api: !include components/api.yaml
   boot: !include components/boot.yaml
+  ota: !include components/ota.yaml
   # controls: !include components/controls.yaml

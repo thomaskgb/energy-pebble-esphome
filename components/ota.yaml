@@ -1,0 +1,87 @@
+# Global variable to track current version
+globals:
+  - id: current_version
+    type: std::string
+    initial_value: '"${version}"'
+
+# Text sensor to show current firmware version
+text_sensor:
+  - platform: template
+    name: "Firmware Version"
+    id: firmware_version
+    lambda: |-
+      return id(current_version);
+    update_interval: never
+
+# Button to manually check for updates
+button:
+  - platform: template
+    name: "Check for Firmware Updates"
+    id: check_updates
+    on_press:
+      - script.execute: check_firmware_update
+
+# Interval to automatically check for updates every 12 hours
+interval:
+  - interval: 12h
+    startup_delay: 300s  # Wait 5 minutes after boot
+    then:
+      - script.execute: check_firmware_update
+
+# Script to check for firmware updates
+script:
+  - id: check_firmware_update
+    then:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - logger.log: 
+                level: INFO
+                format: "Checking for firmware updates..."
+            - http_request.get:
+                id: http_request_data
+                url: !lambda |-
+                  uint64_t mac = ESP.getEfuseMac();
+                  char mac_str[13];
+                  sprintf(mac_str, "%012llx", mac);
+                  return "https://energypebble.tdlx.nl/api/ota/check/" + std::string(mac_str);
+                request_headers:
+                  X-Device-ID: !lambda |-
+                    uint64_t mac = ESP.getEfuseMac();
+                    static char mac_str[13];
+                    sprintf(mac_str, "%012llx", mac);
+                    return mac_str;
+                capture_response: true
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (response->status_code == 200) {
+                          json::parse_json(body, [](JsonObject root) -> bool {
+                            if (root["version"] && root["download_url"]) {
+                              std::string new_version = root["version"];
+                              std::string current = id(current_version);
+                              
+                              ESP_LOGI("OTA", "Current version: %s, Available version: %s", current.c_str(), new_version.c_str());
+                              
+                              if (new_version != current) {
+                                ESP_LOGI("OTA", "New firmware version available: %s", new_version.c_str());
+                                std::string download_url = root["download_url"];
+                                ESP_LOGI("OTA", "Download URL: %s", download_url.c_str());
+                                
+                                // TODO: Implement actual OTA download and install
+                                // For now, just log that an update is available
+                              } else {
+                                ESP_LOGI("OTA", "Firmware is up to date");
+                              }
+                              return true;
+                            }
+                            return false;
+                          });
+                        } else {
+                          ESP_LOGW("OTA", "Failed to check for updates, HTTP %d", response->status_code);
+                        }
+          else:
+            - logger.log:
+                level: INFO
+                format: "WiFi not connected - skipping update check"

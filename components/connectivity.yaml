@@ -12,6 +12,7 @@ wifi:
   ap:
     ssid: "Energy Pebble"
     password: !secret fallback_password
+  output_power: 8.5
 
 
   on_connect:

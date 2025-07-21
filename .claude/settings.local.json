@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:esphome.io)",
+      "WebFetch(domain:energypebble.tdlx.nl)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}

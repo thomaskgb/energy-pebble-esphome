@@ -27,6 +27,16 @@ globals:
 # Text sensors to show the data
 text_sensor:
   - platform: template
+    name: "Device UUID"
+    id: device_uuid
+    lambda: |-
+      uint64_t mac = ESP.getEfuseMac();
+      char mac_str[13];
+      sprintf(mac_str, "%012llx", mac);
+      return std::string(mac_str);
+    update_interval: never
+
+  - platform: template
     name: "Current Hour Color"
     id: current_color_code
     lambda: |-
@@ -105,6 +115,12 @@ script:
             - http_request.get:
                 id: http_request_data
                 url: "https://energypebble.tdlx.nl/api/color-code"
+                request_headers:
+                  X-Device-ID: !lambda |-
+                    uint64_t mac = ESP.getEfuseMac();
+                    static char mac_str[13];
+                    sprintf(mac_str, "%012llx", mac);
+                    return mac_str;
                 capture_response: true
                 on_response:
                   then:
@@ -145,7 +161,7 @@ script:
                                 // Set LED colors with API data
                                 // Define color and brightness constants
                                 const float center_brightness = 1.0f;
-                                const float ring_brightness = 0.4f;
+                                const float ring_brightness = 0.25f;
                                 
                                 // Color definitions (RGB values)
                                 const float green_r = 0.0f, green_g = 1.0f, green_b = 0.0f;
