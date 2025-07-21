@@ -41,9 +41,10 @@ jobs:
           echo 'fallback_password: "dummy"' >> secrets.yaml
           
       - name: Build firmware
+        env:
+          version: ${{ steps.version.outputs.version }}
         run: |
-          esphome compile energy_pebble.yaml \
-            -s version "${{ steps.version.outputs.version }}"
+          esphome compile energy_pebble.yaml
             
       - name: Prepare firmware files
         run: |

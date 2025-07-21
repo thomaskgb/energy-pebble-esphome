@@ -4,7 +4,7 @@ esphome:
   friendly_name: Energy Pebble
   project:
     name: "thomaskgb.energy-pebble"
-    version: "${version}"
+    version: !env_var version
   # Disable safe mode to prevent unexpected behavior
   on_boot:
     priority: 600

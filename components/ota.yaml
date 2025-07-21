@@ -2,7 +2,8 @@
 globals:
   - id: current_version
     type: std::string
-    initial_value: '"${version}"'
+    initial_value: !env_var version
+    restore_value: false
 
 # Text sensor to show current firmware version
 text_sensor:
