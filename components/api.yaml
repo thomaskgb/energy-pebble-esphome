@@ -161,7 +161,7 @@ script:
                                 // Set LED colors with API data
                                 // Define color and brightness constants
                                 const float center_brightness = 1;
-                                const float ring_brightness = 0.25;
+                                const float ring_brightness = 0.25f;
                                 
                                 // Color definitions (RGB values)
                                 const float green_r = 0, green_g = 1, green_b = 0;
