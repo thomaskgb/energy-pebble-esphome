@@ -51,6 +51,7 @@ jobs:
             firmware/energy-pebble-${{ steps.version.outputs.version }}.bin
           # List what we have for debugging
           ls -la .esphome/build/energy-pebble/.pioenvs/energy-pebble/
+          echo "Firmware build completed successfully!"
             
       - name: Checkout target repo
         uses: actions/checkout@v4
