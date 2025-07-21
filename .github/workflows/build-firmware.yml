@@ -29,16 +29,14 @@ jobs:
           
       - name: Install ESPHome
         run: |
-          pip install esphome==${{ env.ESPHOME_VERSION }}
+          pip install esphome==2025.6.0
           
-      - name: Create secrets file
+      - name: Create secrets files
         run: |
+          # Create main secrets.yaml
           cp secrets_template.yaml secrets.yaml
-          # Add dummy values for build (not used in final firmware)
-          echo 'wifi_ssid: "dummy"' >> secrets.yaml
-          echo 'wifi_password: "dummy"' >> secrets.yaml
-          echo 'ota_password: "dummy"' >> secrets.yaml
-          echo 'fallback_password: "dummy"' >> secrets.yaml
+          # Create components/secrets.yaml with same content  
+          cp secrets.yaml components/secrets.yaml
           
       - name: Build firmware
         env:
@@ -51,8 +49,6 @@ jobs:
           mkdir -p firmware
           cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.ota.bin \
             firmware/energy-pebble-${{ steps.version.outputs.version }}.bin
-          cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.elf \
-            firmware/energy-pebble-${{ steps.version.outputs.version }}.elf
             
       - name: Checkout target repo
         uses: actions/checkout@v4
