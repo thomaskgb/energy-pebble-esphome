@@ -49,6 +49,8 @@ jobs:
           mkdir -p firmware
           cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.ota.bin \
             firmware/energy-pebble-${{ steps.version.outputs.version }}.bin
+          # List what we have for debugging
+          ls -la .esphome/build/energy-pebble/.pioenvs/energy-pebble/
             
       - name: Checkout target repo
         uses: actions/checkout@v4
@@ -62,8 +64,7 @@ jobs:
           mkdir -p api-repo/firmware
           cp firmware/energy-pebble-${{ steps.version.outputs.version }}.bin \
             api-repo/firmware/
-          cp firmware/energy-pebble-${{ steps.version.outputs.version }}.elf \
-            api-repo/firmware/
+          # Note: We only need the .bin file for OTA updates
             
       - name: Create version info file
         run: |
