@@ -44,5 +44,5 @@ packages:
   leds: !include components/leds.yaml
   api: !include components/api.yaml
   boot: !include components/boot.yaml
-  ota: !include components/ota.yaml
+  # ota: !include components/ota.yaml  # Temporarily disabled for v1.1.0
   # controls: !include components/controls.yaml
