@@ -1,26 +1,4 @@
-# Global variable to track current version
-globals:
-  - id: current_version
-    type: std::string
-    initial_value: !env_var version
-    restore_value: false
-
-# Text sensor to show current firmware version
-text_sensor:
-  - platform: template
-    name: "Firmware Version"
-    id: firmware_version
-    lambda: |-
-      return id(current_version);
-    update_interval: never
-
-# Button to manually check for updates
-button:
-  - platform: template
-    name: "Check for Firmware Updates"
-    id: check_updates
-    on_press:
-      - script.execute: check_firmware_update
+# OTA Update Check - 12 hour interval
 
 # Interval to automatically check for updates every 12 hours
 interval:
@@ -61,7 +39,7 @@ script:
                           json::parse_json(body, [](JsonObject root) -> bool {
                             if (root["version"] && root["download_url"]) {
                               std::string new_version = root["version"];
-                              std::string current = id(current_version);
+                              std::string current = "1.2.0"; // Current firmware version
                               
                               ESP_LOGI("OTA", "Current version: %s, Available version: %s", current.c_str(), new_version.c_str());
                               
