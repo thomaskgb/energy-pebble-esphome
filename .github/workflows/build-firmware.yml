@@ -55,12 +55,20 @@ jobs:
             
       - name: Upload firmware via API
         run: |
-          # Upload firmware to the API server using Bearer token
+          # Upload firmware to the API server using correct parameters
           curl -X POST "https://energypebble.tdlx.nl/api/firmware/upload" \
             -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
-            -F "version=${{ steps.version.outputs.version }}" \
-            -F "firmware=@firmware/energy-pebble-${{ steps.version.outputs.version }}.bin" \
-            -F "git_commit=${{ github.sha }}" \
-            -F "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -H "accept: application/json" \
+            -H "Content-Type: multipart/form-data" \
+            -F "firmware_file=@firmware/energy-pebble-${{ steps.version.outputs.version }}.bin;type=application/octet-stream" \
+            -F "version=v${{ steps.version.outputs.version }}" \
+            -F "product_name=energy_pebble" \
+            -F "variant=release" \
+            -F "is_stable=true" \
+            -F "release_notes=Automated release from GitHub Actions (commit: ${{ github.sha }})" \
+            -F "min_version=" \
+            -F "target_devices=" \
+            -F "force_update=false" \
+            -F "rollback_version=" \
             --fail-with-body \
             -v
