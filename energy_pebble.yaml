@@ -24,6 +24,10 @@ esp32:
   framework:
     type: arduino
 
+# Explicitly configure preferences to ensure WiFi credentials persist
+preferences:
+  flash_write_interval: 5min
+
 # Enable logging with reduced verbosity to prevent log spam
 logger:
   level: DEBUG

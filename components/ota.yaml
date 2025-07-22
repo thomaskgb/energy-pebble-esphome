@@ -16,6 +16,7 @@ globals:
 ota:
   - platform: esphome
     id: esphome_ota
+    password: !secret ota_password
   - platform: http_request
     id: http_ota
 
