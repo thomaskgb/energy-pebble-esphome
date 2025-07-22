@@ -7,8 +7,10 @@ substitutions:
 ota:
   - platform: esphome
     id: esphome_ota
+  - platform: http_request
+    id: http_ota
 
-# Button to manually trigger OTA update check
+# Two buttons: Check for updates and Install updates
 button:
   - platform: template
     name: "Check for Updates"
@@ -16,19 +18,90 @@ button:
     on_press:
       - script.execute: check_firmware_update
 
+  - platform: template
+    name: "Install Latest Update" 
+    id: manual_update_install
+    on_press:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - logger.log:
+                level: INFO
+                format: "🔄 Starting HTTP OTA update..."
+            - text_sensor.template.publish:
+                id: update_status_sensor
+                state: "Installing update..."
+            - http_request.get:
+                id: http_request_data
+                url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
+                request_headers:
+                  Connection: "close"
+                  User-Agent: "ESPHome-OTA/1.0"
+                  X-Device-ID: !lambda |-
+                    uint64_t mac = ESP.getEfuseMac();
+                    static char mac_str[13];
+                    sprintf(mac_str, "%012llx", mac);
+                    return mac_str;
+                capture_response: true
+                on_response:
+                  then:
+                    - lambda: |-
+                        if (response->status_code == 200) {
+                          json::parse_json(body, [](JsonObject root) -> bool {
+                            if (root["download_url"] && root["md5_hash"]) {
+                              std::string download_url = root["download_url"];
+                              std::string md5_hash = root["md5_hash"];
+                              std::string sha256_hash = "";
+                              
+                              // Get SHA-256 hash if available for additional security logging
+                              if (root["sha256_hash"]) {
+                                sha256_hash = root["sha256_hash"];
+                                ESP_LOGI("OTA", "SHA-256 hash available for verification: %s", sha256_hash.c_str());
+                              }
+                              
+                              ESP_LOGI("OTA", "Starting HTTP OTA update from: %s", download_url.c_str());
+                              ESP_LOGI("OTA", "Expected MD5: %s", md5_hash.c_str());
+                              
+                              // ESPHome HTTP OTA uses MD5 for validation
+                              // SHA-256 is logged for additional security verification
+                              auto ota_update = esphome::http_request::HttpRequestOTAComponent::get(App);
+                              if (ota_update != nullptr) {
+                                ota_update->set_url(download_url.c_str());
+                                ota_update->set_md5(md5_hash.c_str());
+                                ota_update->perform();
+                              }
+                              return true;
+                            }
+                            return false;
+                          });
+                        } else {
+                          ESP_LOGW("OTA", "Failed to get update info - HTTP %d", response->status_code);
+                          id(update_status_sensor).publish_state("Update failed - check logs");
+                        }
+          else:
+            - logger.log:
+                level: WARN
+                format: "⚠️  WiFi not connected - cannot install update"
+            - text_sensor.template.publish:
+                id: update_status_sensor
+                state: "No WiFi - update failed"
+
 # Text sensors to display version information
 text_sensor:
   - platform: template
     name: "Current Firmware Version"
     id: current_version_sensor
-    update_interval: never
+    update_interval: 60s
     lambda: |-
       return {"v${current_version}"};
   
   - platform: template
     name: "Update Status"
     id: update_status_sensor
-    update_interval: never
+    update_interval: 60s
+    lambda: |-
+      return {"Ready for update check"};
 
 # Interval to automatically check for updates every 12 hours
 interval:
@@ -37,7 +110,7 @@ interval:
     then:
       - script.execute: check_firmware_update
 
-# Script to check for firmware updates
+# Script to check for firmware updates (detection only)
 script:
   - id: check_firmware_update
     then:
@@ -113,9 +186,9 @@ script:
                                   ESP_LOGI("OTA", "   Release Notes: %s", release_notes.c_str());
                                 }
                                 
-                                // Update status sensor
+                                // Update status sensor - detection only
                                 id(update_status_sensor).publish_state("Update available: " + latest_version);
-                                ESP_LOGI("OTA", "❗ ACTION REQUIRED: Use ESPHome dashboard or web interface to install update");
+                                ESP_LOGI("OTA", "✅ Use 'Install Latest Update' button to install");
                                 ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - UPDATE AVAILABLE ===");
                               } else {
                                 ESP_LOGI("OTA", "✅ Firmware is up to date - no action needed");

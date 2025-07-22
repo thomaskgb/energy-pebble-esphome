@@ -53,10 +53,20 @@ jobs:
           esphome compile energy_pebble.yaml
             
       - name: Prepare firmware files
+        id: prepare
         run: |
           mkdir -p firmware
           cp .esphome/build/energy-pebble/.pioenvs/energy-pebble/firmware.ota.bin \
             firmware/energy-pebble-${{ steps.version.outputs.version }}.bin
+          
+          # Calculate MD5 and SHA-256 hashes of the firmware binary
+          MD5_HASH=$(md5sum firmware/energy-pebble-${{ steps.version.outputs.version }}.bin | cut -d' ' -f1)
+          SHA256_HASH=$(sha256sum firmware/energy-pebble-${{ steps.version.outputs.version }}.bin | cut -d' ' -f1)
+          echo "md5_hash=${MD5_HASH}" >> $GITHUB_OUTPUT
+          echo "sha256_hash=${SHA256_HASH}" >> $GITHUB_OUTPUT
+          echo "Firmware MD5: ${MD5_HASH}"
+          echo "Firmware SHA-256: ${SHA256_HASH}"
+          
           # List what we have for debugging
           ls -la .esphome/build/energy-pebble/.pioenvs/energy-pebble/
           echo "Firmware build completed successfully!"
@@ -78,5 +88,7 @@ jobs:
             -F "target_devices=" \
             -F "force_update=false" \
             -F "rollback_version=" \
+            -F "md5_hash=${{ steps.prepare.outputs.md5_hash }}" \
+            -F "sha256_hash=${{ steps.prepare.outputs.sha256_hash }}" \
             --fail-with-body \
             -v
