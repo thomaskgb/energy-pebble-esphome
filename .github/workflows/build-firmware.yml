@@ -73,7 +73,7 @@ jobs:
             -F "product_name=energy_pebble" \
             -F "variant=release" \
             -F "is_stable=true" \
-            -F "release_notes=Automated release from GitHub Actions (commit: ${{ github.sha }})" \
+            -F "release_notes=$(git log -1 --pretty=format:'%s')" \
             -F "min_version=" \
             -F "target_devices=" \
             -F "force_update=false" \

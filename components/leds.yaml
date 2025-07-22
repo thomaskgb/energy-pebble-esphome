@@ -18,10 +18,11 @@ light:
         from: 24
         to: 24
 
-# 8 Ring Segments (3 LEDs each: 0–2, 3–5, ..., 21–23)
+# 8 Ring Segments (3 LEDs each: 0–2, 3–5, ..., 21–23) - Internal use only
   - platform: partition
     name: "Ring Segment 1"
     id: ring_segment_1
+    internal: true
     segments:
       - id: led_ring
         from: 0
@@ -30,6 +31,7 @@ light:
   - platform: partition
     name: "Ring Segment 2"
     id: ring_segment_2
+    internal: true
     segments:
       - id: led_ring
         from: 3
@@ -38,6 +40,7 @@ light:
   - platform: partition
     name: "Ring Segment 3"
     id: ring_segment_3
+    internal: true
     segments:
       - id: led_ring
         from: 6
@@ -46,6 +49,7 @@ light:
   - platform: partition
     name: "Ring Segment 4"
     id: ring_segment_4
+    internal: true
     segments:
       - id: led_ring
         from: 9
@@ -54,6 +58,7 @@ light:
   - platform: partition
     name: "Ring Segment 5"
     id: ring_segment_5
+    internal: true
     segments:
       - id: led_ring
         from: 12
@@ -62,6 +67,7 @@ light:
   - platform: partition
     name: "Ring Segment 6"
     id: ring_segment_6
+    internal: true
     segments:
       - id: led_ring
         from: 15
@@ -70,6 +76,7 @@ light:
   - platform: partition
     name: "Ring Segment 7"
     id: ring_segment_7
+    internal: true
     segments:
       - id: led_ring
         from: 18
@@ -78,6 +85,7 @@ light:
   - platform: partition
     name: "Ring Segment 8"
     id: ring_segment_8
+    internal: true
     segments:
       - id: led_ring
         from: 21

@@ -1,5 +1,8 @@
 # OTA Update Check - 12 hour interval
 
+substitutions:
+  current_version: !env_var version "unknown"
+
 # ESPHome OTA component for firmware updates
 ota:
   - platform: esphome
@@ -12,6 +15,20 @@ button:
     id: manual_ota_check
     on_press:
       - script.execute: check_firmware_update
+
+# Text sensors to display version information
+text_sensor:
+  - platform: template
+    name: "Current Firmware Version"
+    id: current_version_sensor
+    update_interval: never
+    lambda: |-
+      return {"v${current_version}"};
+  
+  - platform: template
+    name: "Update Status"
+    id: update_status_sensor
+    update_interval: never
 
 # Interval to automatically check for updates every 12 hours
 interval:
@@ -30,15 +47,16 @@ script:
           then:
             - logger.log: 
                 level: INFO
-                format: "Checking for firmware updates..."
+                format: "=== OTA UPDATE CHECK STARTED ==="
+            - logger.log: 
+                level: INFO
+                format: "Current firmware version: v${current_version}"
             - http_request.get:
                 id: http_request_data
-                url: !lambda |-
-                  uint64_t mac = ESP.getEfuseMac();
-                  char mac_str[13];
-                  sprintf(mac_str, "%012llx", mac);
-                  return "https://energypebble.tdlx.nl/api/ota/check/" + std::string(mac_str);
+                url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
                 request_headers:
+                  Connection: "close"
+                  User-Agent: "ESPHome-OTA/1.0"
                   X-Device-ID: !lambda |-
                     uint64_t mac = ESP.getEfuseMac();
                     static char mac_str[13];
@@ -50,30 +68,78 @@ script:
                     - lambda: |-
                         if (response->status_code == 200) {
                           json::parse_json(body, [](JsonObject root) -> bool {
-                            if (root["version"] && root["download_url"]) {
-                              std::string new_version = root["version"];
-                              std::string current = "1.2.0"; // Current firmware version
+                            if (root["version"]) {
+                              std::string latest_version = root["version"];
+                              std::string current = "v${current_version}"; // Current firmware version
                               
-                              ESP_LOGI("OTA", "Current version: %s, Available version: %s", current.c_str(), new_version.c_str());
+                              ESP_LOGI("OTA", "Latest stable version from server: %s", latest_version.c_str());
+                              ESP_LOGI("OTA", "Comparing versions - Current: %s vs Latest Stable: %s", current.c_str(), latest_version.c_str());
                               
-                              if (new_version != current) {
-                                ESP_LOGI("OTA", "New firmware version available: %s", new_version.c_str());
-                                std::string download_url = root["download_url"];
-                                ESP_LOGI("OTA", "Download URL: %s", download_url.c_str());
+                              // Simple version comparison - assumes format vX.Y.Z
+                              auto parse_version = [](const std::string& v) {
+                                std::string clean = v.substr(1); // Remove 'v' prefix
+                                int major = 0, minor = 0, patch = 0;
+                                sscanf(clean.c_str(), "%d.%d.%d", &major, &minor, &patch);
+                                return std::make_tuple(major, minor, patch);
+                              };
+                              
+                              auto current_ver = parse_version(current);
+                              auto latest_ver = parse_version(latest_version);
+                              
+                              int curr_maj = std::get<0>(current_ver);
+                              int curr_min = std::get<1>(current_ver);
+                              int curr_pat = std::get<2>(current_ver);
+                              
+                              int new_maj = std::get<0>(latest_ver);
+                              int new_min = std::get<1>(latest_ver);
+                              int new_pat = std::get<2>(latest_ver);
+                              
+                              bool update_available = (new_maj > curr_maj) || 
+                                                    (new_maj == curr_maj && new_min > curr_min) ||
+                                                    (new_maj == curr_maj && new_min == curr_min && new_pat > curr_pat);
+                              
+                              if (update_available) {
+                                ESP_LOGI("OTA", "🔄 UPDATE AVAILABLE!");
+                                ESP_LOGI("OTA", "   Current version: %s", current.c_str());
+                                ESP_LOGI("OTA", "   Latest stable version: %s", latest_version.c_str());
+                                if (root["download_url"]) {
+                                  std::string download_url = root["download_url"];
+                                  ESP_LOGI("OTA", "   Download URL: %s", download_url.c_str());
+                                }
                                 
-                                // Log update availability - manual update required
-                                ESP_LOGI("OTA", "Update available! Use ESPHome dashboard or web interface to update.");
+                                // Display release notes if available
+                                if (root["release_notes"]) {
+                                  std::string release_notes = root["release_notes"];
+                                  ESP_LOGI("OTA", "   Release Notes: %s", release_notes.c_str());
+                                }
+                                
+                                // Update status sensor
+                                id(update_status_sensor).publish_state("Update available: " + latest_version);
+                                ESP_LOGI("OTA", "❗ ACTION REQUIRED: Use ESPHome dashboard or web interface to install update");
+                                ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - UPDATE AVAILABLE ===");
                               } else {
-                                ESP_LOGI("OTA", "Firmware is up to date");
+                                ESP_LOGI("OTA", "✅ Firmware is up to date - no action needed");
+                                id(update_status_sensor).publish_state("Up to date");
+                                ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - NO UPDATES ===");
                               }
                               return true;
                             }
                             return false;
                           });
                         } else {
-                          ESP_LOGW("OTA", "Failed to check for updates, HTTP %d", response->status_code);
+                          ESP_LOGW("OTA", "❌ UPDATE CHECK FAILED!");
+                          ESP_LOGW("OTA", "   HTTP Status: %d", response->status_code);
+                          ESP_LOGW("OTA", "   Server response: %s", body.c_str());
+                          ESP_LOGW("OTA", "=== UPDATE CHECK COMPLETE - ERROR ===");
+                          id(update_status_sensor).publish_state("Check failed - HTTP " + std::to_string(response->status_code));
                         }
           else:
             - logger.log:
-                level: INFO
-                format: "WiFi not connected - skipping update check"
+                level: WARN
+                format: "⚠️  WiFi not connected - cannot check for updates"
+            - logger.log:
+                level: INFO  
+                format: "=== UPDATE CHECK SKIPPED - NO WIFI ==="
+            - text_sensor.template.publish:
+                id: update_status_sensor
+                state: "No WiFi - check skipped"

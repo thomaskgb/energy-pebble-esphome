@@ -14,9 +14,9 @@ globals:
   - id: current_hour_color
     type: std::string
     initial_value: '"G"'
-  - id: next_12_hours
+  - id: next_8_hours
     type: std::string
-    initial_value: '"G,G,G,G,G,G,G,G,G,G,G,G"'
+    initial_value: '"G,G,G,G,G,G,G,G"'
   - id: api_fetch_success
     type: bool
     initial_value: 'false'
@@ -44,10 +44,10 @@ text_sensor:
     update_interval: 60s
 
   - platform: template
-    name: "Next 12 Hours Colors"
-    id: next_12_hours_colors
+    name: "Next 8 Hours Colors"
+    id: next_8_hours_colors
     lambda: |-
-      return id(next_12_hours);
+      return id(next_8_hours);
     update_interval: 60s
 
   - platform: template
@@ -143,9 +143,9 @@ script:
                                   id(current_hour_color) = std::string(current_color);
                                 }
                                 
-                                // Build string for next 12 hours
+                                // Build string for next 8 hours
                                 std::string next_hours = "";
-                                int hours_to_show = std::min(12, total_hours);
+                                int hours_to_show = std::min(8, total_hours);
                                 for (int i = 0; i < hours_to_show; i++) {
                                   if (i > 0) next_hours += ",";
                                   JsonObject hour_obj = hour_codes[i];
@@ -154,7 +154,7 @@ script:
                                     next_hours += std::string(color);
                                   }
                                 }
-                                id(next_12_hours) = next_hours;
+                                id(next_8_hours) = next_hours;
                                 
                                 id(api_fetch_success) = true;
                                 
