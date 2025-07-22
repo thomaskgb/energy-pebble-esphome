@@ -55,9 +55,8 @@ jobs:
             
       - name: Upload firmware via API
         run: |
-          # Upload firmware to the API server using the admin endpoint
+          # Upload firmware to the API server (no authentication required)
           curl -X POST "https://energypebble.tdlx.nl/api/firmware/upload" \
-            -H "Authorization: Bearer ${{ secrets.API_ADMIN_TOKEN }}" \
             -F "version=${{ steps.version.outputs.version }}" \
             -F "firmware=@firmware/energy-pebble-${{ steps.version.outputs.version }}.bin" \
             -F "git_commit=${{ github.sha }}" \
