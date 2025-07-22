@@ -3,6 +3,15 @@
 substitutions:
   current_version: !env_var version "unknown"
 
+# Global variables for OTA update
+globals:
+  - id: ota_url
+    type: std::string
+    initial_value: '""'
+  - id: ota_md5
+    type: std::string
+    initial_value: '""'
+
 # ESPHome OTA component for firmware updates
 ota:
   - platform: esphome
@@ -31,54 +40,8 @@ button:
                 format: "🔄 Starting HTTP OTA update..."
             - text_sensor.template.publish:
                 id: update_status_sensor
-                state: "Installing update..."
-            - http_request.get:
-                id: http_request_data
-                url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
-                request_headers:
-                  Connection: "close"
-                  User-Agent: "ESPHome-OTA/1.0"
-                  X-Device-ID: !lambda |-
-                    uint64_t mac = ESP.getEfuseMac();
-                    static char mac_str[13];
-                    sprintf(mac_str, "%012llx", mac);
-                    return mac_str;
-                capture_response: true
-                on_response:
-                  then:
-                    - lambda: |-
-                        if (response->status_code == 200) {
-                          json::parse_json(body, [](JsonObject root) -> bool {
-                            if (root["download_url"] && root["md5_hash"]) {
-                              std::string download_url = root["download_url"];
-                              std::string md5_hash = root["md5_hash"];
-                              std::string sha256_hash = "";
-                              
-                              // Get SHA-256 hash if available for additional security logging
-                              if (root["sha256_hash"]) {
-                                sha256_hash = root["sha256_hash"];
-                                ESP_LOGI("OTA", "SHA-256 hash available for verification: %s", sha256_hash.c_str());
-                              }
-                              
-                              ESP_LOGI("OTA", "Starting HTTP OTA update from: %s", download_url.c_str());
-                              ESP_LOGI("OTA", "Expected MD5: %s", md5_hash.c_str());
-                              
-                              // ESPHome HTTP OTA uses MD5 for validation
-                              // SHA-256 is logged for additional security verification
-                              auto ota_update = esphome::http_request::HttpRequestOTAComponent::get(App);
-                              if (ota_update != nullptr) {
-                                ota_update->set_url(download_url.c_str());
-                                ota_update->set_md5(md5_hash.c_str());
-                                ota_update->perform();
-                              }
-                              return true;
-                            }
-                            return false;
-                          });
-                        } else {
-                          ESP_LOGW("OTA", "Failed to get update info - HTTP %d", response->status_code);
-                          id(update_status_sensor).publish_state("Update failed - check logs");
-                        }
+                state: "Fetching update info..."
+            - script.execute: perform_ota_update
           else:
             - logger.log:
                 level: WARN
@@ -110,7 +73,7 @@ interval:
     then:
       - script.execute: check_firmware_update
 
-# Script to check for firmware updates (detection only)
+# Scripts for OTA functionality
 script:
   - id: check_firmware_update
     then:
@@ -216,3 +179,71 @@ script:
             - text_sensor.template.publish:
                 id: update_status_sensor
                 state: "No WiFi - check skipped"
+
+  - id: perform_ota_update
+    then:
+      - logger.log:
+          level: INFO
+          format: "Getting latest firmware info for OTA update..."
+      - http_request.get:
+          id: http_request_data
+          url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
+          request_headers:
+            Connection: "close"
+            User-Agent: "ESPHome-OTA/1.0"
+            X-Device-ID: !lambda |-
+              uint64_t mac = ESP.getEfuseMac();
+              static char mac_str[13];
+              sprintf(mac_str, "%012llx", mac);
+              return mac_str;
+          capture_response: true
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code == 200) {
+                    json::parse_json(body, [](JsonObject root) -> bool {
+                      if (root["download_url"] && root["md5_hash"]) {
+                        std::string download_url = root["download_url"];
+                        std::string md5_hash = root["md5_hash"];
+                        std::string sha256_hash = "";
+                        
+                        // Get SHA-256 hash if available for additional security logging
+                        if (root["sha256_hash"]) {
+                          sha256_hash = root["sha256_hash"].as<const char*>();
+                          ESP_LOGI("OTA", "SHA-256 hash for verification: %s", sha256_hash.c_str());
+                        }
+                        
+                        ESP_LOGI("OTA", "Starting HTTP OTA update from: %s", download_url.c_str());
+                        ESP_LOGI("OTA", "Expected MD5: %s", md5_hash.c_str());
+                        
+                        // Set global variables for OTA action
+                        id(ota_url) = download_url;
+                        id(ota_md5) = md5_hash;
+                        return true;
+                      }
+                      return false;
+                    });
+                  } else {
+                    ESP_LOGW("OTA", "Failed to get update info - HTTP %d", response->status_code);
+                    id(update_status_sensor).publish_state("Update failed - check logs");
+                  }
+              - if:
+                  condition:
+                    lambda: 'return !id(ota_url).empty() && !id(ota_md5).empty();'
+                  then:
+                    - logger.log:
+                        level: INFO
+                        format: "Performing HTTP OTA update..."
+                    - text_sensor.template.publish:
+                        id: update_status_sensor
+                        state: "Installing update..."
+                    - ota.http_request.flash:
+                        url: !lambda 'return id(ota_url);'
+                        md5: !lambda 'return id(ota_md5);'
+                  else:
+                    - logger.log:
+                        level: ERROR
+                        format: "❌ Failed to get OTA URL or MD5 hash"
+                    - text_sensor.template.publish:
+                        id: update_status_sensor
+                        state: "Update failed - missing data"
