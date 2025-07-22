@@ -1,5 +1,18 @@
 # OTA Update Check - 12 hour interval
 
+# ESPHome OTA component for firmware updates
+ota:
+  - platform: esphome
+    id: esphome_ota
+
+# Button to manually trigger OTA update check
+button:
+  - platform: template
+    name: "Check for Updates"
+    id: manual_ota_check
+    on_press:
+      - script.execute: check_firmware_update
+
 # Interval to automatically check for updates every 12 hours
 interval:
   - interval: 12h
@@ -48,8 +61,8 @@ script:
                                 std::string download_url = root["download_url"];
                                 ESP_LOGI("OTA", "Download URL: %s", download_url.c_str());
                                 
-                                // TODO: Implement actual OTA download and install
-                                // For now, just log that an update is available
+                                // Log update availability - manual update required
+                                ESP_LOGI("OTA", "Update available! Use ESPHome dashboard or web interface to update.");
                               } else {
                                 ESP_LOGI("OTA", "Firmware is up to date");
                               }
