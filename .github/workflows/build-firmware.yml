@@ -33,8 +33,16 @@ jobs:
           
       - name: Create secrets files
         run: |
-          # Create main secrets.yaml
-          cp secrets_template.yaml secrets.yaml
+          # Create secrets.yaml from environment variables (for CI)
+          cat > secrets.yaml << EOF
+          # WiFi credentials
+          wifi_ssid: "${{ secrets.WIFI_SSID || 'YOUR_WIFI_SSID' }}"
+          wifi_password: "${{ secrets.WIFI_PASSWORD || 'YOUR_WIFI_PASSWORD' }}"
+
+          # Security
+          ota_password: "${{ secrets.OTA_PASSWORD || 'YOUR_OTA_PASSWORD' }}"
+          EOF
+          
           # Create components/secrets.yaml with same content  
           cp secrets.yaml components/secrets.yaml
           
