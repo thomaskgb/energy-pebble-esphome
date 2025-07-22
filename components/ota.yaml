@@ -202,14 +202,14 @@ script:
               - lambda: |-
                   if (response->status_code == 200) {
                     json::parse_json(body, [](JsonObject root) -> bool {
-                      if (root["download_url"] && root["md5_hash"]) {
+                      if (root["download_url"] && root["md5_checksum"]) {
                         std::string download_url = root["download_url"];
-                        std::string md5_hash = root["md5_hash"];
+                        std::string md5_hash = root["md5_checksum"];
                         std::string sha256_hash = "";
                         
                         // Get SHA-256 hash if available for additional security logging
-                        if (root["sha256_hash"]) {
-                          sha256_hash = root["sha256_hash"].as<const char*>();
+                        if (root["checksum"]) {
+                          sha256_hash = root["checksum"].as<const char*>();
                           ESP_LOGI("OTA", "SHA-256 hash for verification: %s", sha256_hash.c_str());
                         }
                         
