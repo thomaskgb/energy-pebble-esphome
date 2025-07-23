@@ -19,6 +19,9 @@ ota:
     password: !secret ota_password
   - platform: http_request
     id: http_ota
+    on_end:
+      then:
+        - script.execute: notify_ota_success
 
 # Two buttons: Check for updates and Install updates
 button:
@@ -248,3 +251,37 @@ script:
                     - text_sensor.template.publish:
                         id: update_status_sensor
                         state: "Update failed - missing data"
+
+  - id: notify_ota_success
+    then:
+      - logger.log:
+          level: INFO
+          format: "OTA update completed successfully - notifying server"
+      - http_request.post:
+          id: http_request_data
+          url: !lambda |-
+            uint64_t mac = ESP.getEfuseMac();
+            char mac_str[13];
+            sprintf(mac_str, "%012llx", mac);
+            return "https://energypebble.tdlx.nl/api/ota/status/" + std::string(mac_str);
+          request_headers:
+            Content-Type: "application/json"
+            User-Agent: "ESPHome-OTA/1.0"
+          json:
+            version: "${current_version}"
+            status: "updated"
+            timestamp: !lambda |-
+              auto time = id(api_time).now();
+              char timestamp[32];
+              sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02dZ", 
+                     time.year, time.month, time.day_of_month,
+                     time.hour, time.minute, time.second);
+              return std::string(timestamp);
+          on_response:
+            then:
+              - lambda: |-
+                  if (response->status_code == 200) {
+                    ESP_LOGI("OTA", "✅ Successfully notified server of OTA update");
+                  } else {
+                    ESP_LOGW("OTA", "⚠️  Failed to notify server - HTTP %d", response->status_code);
+                  }
