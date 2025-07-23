@@ -234,7 +234,7 @@ script:
                   then:
                     - logger.log:
                         level: INFO
-                        format: "Performing HTTP OTA update..."
+                        format: "Performing HTTP OTA update with NVS preservation..."
                     - text_sensor.template.publish:
                         id: update_status_sensor
                         state: "Installing update..."
