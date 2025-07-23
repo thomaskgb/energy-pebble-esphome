@@ -19,9 +19,6 @@ ota:
     password: !secret ota_password
   - platform: http_request
     id: http_ota
-    on_end:
-      then:
-        - script.execute: notify_ota_success
 
 # Two buttons: Check for updates and Install updates
 button:
@@ -173,6 +170,7 @@ script:
                           ESP_LOGW("OTA", "=== UPDATE CHECK COMPLETE - ERROR ===");
                           id(update_status_sensor).publish_state("Check failed - HTTP " + std::to_string(response->status_code));
                         }
+                    - script.execute: notify_ota_success
           else:
             - logger.log:
                 level: WARN

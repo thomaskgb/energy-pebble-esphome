@@ -14,6 +14,7 @@ wifi:
         level: INFO
         format: "WiFi connected - triggering initial API call"
     - script.execute: simple_api_call
+    - script.execute: notify_ota_success
 
 captive_portal:
 
