@@ -32,7 +32,7 @@ text_sensor:
       } else {
         return std::string("Error");
       }
-    update_interval: 60s
+    update_interval: never
 
   # 4. Current Hour Color
   - platform: template
@@ -40,7 +40,7 @@ text_sensor:
     id: current_color_code
     lambda: |-
       return id(current_hour_color);
-    update_interval: 60s
+    update_interval: never
 
   # 5. Next 8 Hours Colors
   - platform: template
@@ -48,7 +48,7 @@ text_sensor:
     id: next_8_hours_colors
     lambda: |-
       return id(next_8_hours);
-    update_interval: 60s
+    update_interval: never
 
 # Buttons (in desired display order)
 button:
