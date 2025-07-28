@@ -49,4 +49,5 @@ packages:
   api: !include components/api.yaml
   boot: !include components/boot.yaml
   ota: !include components/ota.yaml
+  interface_order: !include components/01_interface_order.yaml
   # controls: !include components/controls.yaml

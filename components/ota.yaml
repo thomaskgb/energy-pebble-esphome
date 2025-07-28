@@ -28,7 +28,7 @@ text_sensor:
     name: "Update Status"
     id: update_status_sensor
     internal: true
-    update_interval: 60s
+    update_interval: never
     lambda: |-
       return {"Ready for update check"};
 
