@@ -90,7 +90,7 @@ script:
                 format: "Current firmware version: v${current_version}"
             - http_request.get:
                 id: http_request_data
-                url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
+                url: "https://energypebble.tdlx.nl/api/ota/check"
                 request_headers:
                   Connection: "close"
                   User-Agent: "ESPHome-OTA/1.0"
@@ -99,6 +99,7 @@ script:
                     static char mac_str[13];
                     sprintf(mac_str, "%012llx", mac);
                     return mac_str;
+                  X-Current-Version: "v${current_version}"
                 capture_response: true
                 on_response:
                   then:
@@ -189,7 +190,7 @@ script:
           format: "Getting latest firmware info for OTA update..."
       - http_request.get:
           id: http_request_data
-          url: "https://energypebble.tdlx.nl/api/firmware/latest-stable"
+          url: "https://energypebble.tdlx.nl/api/ota/check"
           request_headers:
             Connection: "close"
             User-Agent: "ESPHome-OTA/1.0"
@@ -198,6 +199,7 @@ script:
               static char mac_str[13];
               sprintf(mac_str, "%012llx", mac);
               return mac_str;
+            X-Current-Version: "v${current_version}"
           capture_response: true
           on_response:
             then:
