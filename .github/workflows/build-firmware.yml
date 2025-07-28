@@ -88,7 +88,7 @@ jobs:
             -F "target_devices=" \
             -F "force_update=false" \
             -F "rollback_version=" \
-            -F "md5_hash=${{ steps.prepare.outputs.md5_hash }}" \
-            -F "sha256_hash=${{ steps.prepare.outputs.sha256_hash }}" \
+            -F "md5_checksum=${{ steps.prepare.outputs.md5_hash }}" \
+            -F "sha256_checksum=${{ steps.prepare.outputs.sha256_hash }}" \
             --fail-with-body \
             -v
