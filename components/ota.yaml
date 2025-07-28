@@ -20,49 +20,14 @@ ota:
   - platform: http_request
     id: http_ota
 
-# Two buttons: Check for updates and Install updates
-button:
-  - platform: template
-    name: "Check for Updates"
-    id: manual_ota_check
-    on_press:
-      - script.execute: check_firmware_update
+# Buttons are now defined in 01_interface_order.yaml for web UI ordering
 
-  - platform: template
-    name: "Install Latest Update" 
-    id: manual_update_install
-    on_press:
-      - if:
-          condition:
-            wifi.connected:
-          then:
-            - logger.log:
-                level: INFO
-                format: "🔄 Starting HTTP OTA update..."
-            - text_sensor.template.publish:
-                id: update_status_sensor
-                state: "Fetching update info..."
-            - script.execute: perform_ota_update
-          else:
-            - logger.log:
-                level: WARN
-                format: "⚠️  WiFi not connected - cannot install update"
-            - text_sensor.template.publish:
-                id: update_status_sensor
-                state: "No WiFi - update failed"
-
-# Text sensors to display version information
+# Text sensors are now defined in 01_interface_order.yaml for web UI ordering
 text_sensor:
-  - platform: template
-    name: "Current Firmware Version"
-    id: current_version_sensor
-    update_interval: 60s
-    lambda: |-
-      return {"v${current_version}"};
-  
   - platform: template
     name: "Update Status"
     id: update_status_sensor
+    internal: true
     update_interval: 60s
     lambda: |-
       return {"Ready for update check"};

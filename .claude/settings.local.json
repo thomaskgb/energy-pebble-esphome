@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:esphome.io)",
-      "WebFetch(domain:energypebble.tdlx.nl)"
+      "WebFetch(domain:energypebble.tdlx.nl)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(gh run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(esphome compile:*)"
     ]
   },
   "enableAllProjectMcpServers": false

@@ -24,56 +24,9 @@ globals:
     type: bool
     initial_value: 'false'
 
-# Text sensors to show the data
-text_sensor:
-  - platform: template
-    name: "Device UUID"
-    id: device_uuid
-    lambda: |-
-      uint64_t mac = ESP.getEfuseMac();
-      char mac_str[13];
-      sprintf(mac_str, "%012llx", mac);
-      return std::string(mac_str);
-    update_interval: never
+# Text sensors are now defined in 01_interface_order.yaml for web UI ordering
 
-  - platform: template
-    name: "Current Hour Color"
-    id: current_color_code
-    lambda: |-
-      return id(current_hour_color);
-    update_interval: 60s
-
-  - platform: template
-    name: "Next 8 Hours Colors"
-    id: next_8_hours_colors
-    lambda: |-
-      return id(next_8_hours);
-    update_interval: 60s
-
-  - platform: template
-    name: "API Status"
-    id: api_status
-    lambda: |-
-      if (id(api_fetch_success)) {
-        return std::string("OK");
-      } else {
-        return std::string("Error");
-      }
-    update_interval: 60s
-
-# Button to manually trigger API fetch
-button:
-  - platform: template
-    name: "Test API Call"
-    id: test_api
-    on_press:
-      - script.execute: simple_api_call
-
-  - platform: template
-    name: "Update LED Colors"
-    id: update_leds
-    on_press:
-      - script.execute: simple_api_call
+# Buttons are now defined in 01_interface_order.yaml for web UI ordering
 
 # Interval to automatically fetch data every 15 minutes (with initial delay)
 interval:

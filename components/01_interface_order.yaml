@@ -1,0 +1,91 @@
+# Web Interface Entity Order
+# This file defines entities in the order they should appear in the web interface
+
+# Text sensors (in desired display order)
+text_sensor:
+  # 1. Current Firmware Version (top)
+  - platform: template
+    name: "Current Firmware Version"
+    id: current_version_sensor
+    update_interval: 60s
+    lambda: |-
+      return {"v${current_version}"};
+
+  # 2. Device ID
+  - platform: template
+    name: "Device ID"
+    id: device_id
+    lambda: |-
+      uint64_t mac = ESP.getEfuseMac();
+      char mac_str[13];
+      sprintf(mac_str, "%012llx", mac);
+      return std::string(mac_str);
+    update_interval: never
+
+  # 3. API Status  
+  - platform: template
+    name: "API Status"
+    id: api_status
+    lambda: |-
+      if (id(api_fetch_success)) {
+        return std::string("OK");
+      } else {
+        return std::string("Error");
+      }
+    update_interval: 60s
+
+  # 4. Current Hour Color
+  - platform: template
+    name: "Current Hour Color"
+    id: current_color_code
+    lambda: |-
+      return id(current_hour_color);
+    update_interval: 60s
+
+  # 5. Next 8 Hours Colors
+  - platform: template
+    name: "Next 8 Hours Colors"
+    id: next_8_hours_colors
+    lambda: |-
+      return id(next_8_hours);
+    update_interval: 60s
+
+# Buttons (in desired display order)
+button:
+  # 6. Check for Updates
+  - platform: template
+    name: "Check for Updates"
+    id: manual_ota_check
+    on_press:
+      - script.execute: check_firmware_update
+
+  # 7. Install Latest Update
+  - platform: template
+    name: "Install Latest Update" 
+    id: manual_update_install
+    on_press:
+      - if:
+          condition:
+            wifi.connected:
+          then:
+            - logger.log:
+                level: INFO
+                format: "🔄 Starting HTTP OTA update..."
+            - text_sensor.template.publish:
+                id: update_status_sensor
+                state: "Fetching update info..."
+            - script.execute: perform_ota_update
+          else:
+            - logger.log:
+                level: WARN
+                format: "⚠️  WiFi not connected - cannot install update"
+            - text_sensor.template.publish:
+                id: update_status_sensor
+                state: "No WiFi - update failed"
+
+  # 8. Update LED Colors (bottom)
+  - platform: template
+    name: "Update LED Colors"
+    id: update_leds
+    on_press:
+      - script.execute: simple_api_call
