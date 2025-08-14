@@ -41,6 +41,22 @@ text_sensor:
       }
     update_interval: never
 
+  # 5. Current Hour Color
+  - platform: template
+    name: "Current Hour Color"
+    id: current_color_code
+    lambda: |-
+      return id(current_hour_color);
+    update_interval: never
+
+  # 6. Next 8 Hours Colors (bottom)
+  - platform: template
+    name: "Next 8 Hours Colors"
+    id: next_8_hours_colors
+    lambda: |-
+      return id(next_8_hours);
+    update_interval: never
+
 # Buttons (control section)
 button:
   # 5. Check for Updates
@@ -56,21 +72,3 @@ button:
     id: update_leds
     on_press:
       - script.execute: simple_api_call
-
-# Text sensors (color information at bottom)
-text_sensor:
-  # 7. Current Hour Color
-  - platform: template
-    name: "Current Hour Color"
-    id: current_color_code
-    lambda: |-
-      return id(current_hour_color);
-    update_interval: never
-
-  # 8. Next 8 Hours Colors (bottom)
-  - platform: template
-    name: "Next 8 Hours Colors"
-    id: next_8_hours_colors
-    lambda: |-
-      return id(next_8_hours);
-    update_interval: never
