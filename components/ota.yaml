@@ -50,6 +50,8 @@ script:
             - logger.log: 
                 level: INFO
                 format: "=== OTA UPDATE CHECK STARTED ==="
+            # Update version sensor during check
+            - component.update: current_version_sensor
             - logger.log: 
                 level: INFO
                 format: "Current firmware version: v${current_version}"

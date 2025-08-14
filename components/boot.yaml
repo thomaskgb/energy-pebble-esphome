@@ -30,3 +30,12 @@ script:
       - logger.log:
           level: INFO
           format: "Boot sequence complete - LEDs set with API colors"
+      # Update device info sensors on boot
+      - text_sensor.template.publish:
+          id: device_id
+          state: !lambda |-
+            uint64_t mac = ESP.getEfuseMac();
+            char mac_str[13];
+            sprintf(mac_str, "%012llx", mac);
+            return std::string(mac_str);
+      - component.update: local_ip_address

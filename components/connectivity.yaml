@@ -13,6 +13,15 @@ wifi:
     - logger.log:
         level: INFO
         format: "WiFi connected - triggering initial API call"
+    # Update device info sensors on WiFi connect
+    - text_sensor.template.publish:
+        id: device_id
+        state: !lambda |-
+          uint64_t mac = ESP.getEfuseMac();
+          char mac_str[13];
+          sprintf(mac_str, "%012llx", mac);
+          return std::string(mac_str);
+    - component.update: local_ip_address
     - script.execute: simple_api_call
     - script.execute: notify_ota_success
 

@@ -7,7 +7,7 @@ text_sensor:
   - platform: template
     name: "Current Firmware Version"
     id: current_version_sensor
-    update_interval: 3600s
+    update_interval: never
     lambda: |-
       return {"v${current_version}"};
 
@@ -21,6 +21,13 @@ text_sensor:
       sprintf(mac_str, "%012llx", mac);
       return std::string(mac_str);
     update_interval: never
+
+  # 3. Local IP Address
+  - platform: wifi_info
+    ip_address:
+      name: "Local IP Address"
+      id: local_ip_address
+      update_interval: never
 
   # 3. API Status  
   - platform: template
