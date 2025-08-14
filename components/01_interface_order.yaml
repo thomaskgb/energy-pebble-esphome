@@ -7,7 +7,7 @@ text_sensor:
   - platform: template
     name: "Current Firmware Version"
     id: current_version_sensor
-    update_interval: 60s
+    update_interval: 3600s
     lambda: |-
       return {"v${current_version}"};
 

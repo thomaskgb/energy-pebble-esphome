@@ -64,7 +64,7 @@ script:
           then:
             - logger.log: 
                 level: INFO
-                format: "WiFi connected - Making API call..."
+                format: "WiFi connected - Fetching LED color data from API..."
             - http_request.get:
                 id: http_request_data
                 url: "https://energypebble.tdlx.nl/api/color-code"

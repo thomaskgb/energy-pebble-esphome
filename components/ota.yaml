@@ -35,7 +35,7 @@ text_sensor:
 # Interval to automatically check for updates every 12 hours
 interval:
   - interval: 12h
-    startup_delay: 300s  # Wait 5 minutes after boot
+    startup_delay: 60s  # Wait 1 minute after boot
     then:
       - script.execute: check_firmware_update
 
@@ -116,9 +116,9 @@ script:
                                   ESP_LOGI("OTA", "   Release Notes: %s", release_notes.c_str());
                                 }
                                 
-                                // Update status sensor - detection only
+                                // Update status sensor and trigger automatic installation
                                 id(update_status_sensor).publish_state("Update available: " + latest_version);
-                                ESP_LOGI("OTA", "✅ Use 'Install Latest Update' button to install");
+                                ESP_LOGI("OTA", "🔄 Starting automatic installation...");
                                 ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - UPDATE AVAILABLE ===");
                               } else {
                                 ESP_LOGI("OTA", "✅ Firmware is up to date - no action needed");
@@ -136,6 +136,19 @@ script:
                           ESP_LOGW("OTA", "=== UPDATE CHECK COMPLETE - ERROR ===");
                           id(update_status_sensor).publish_state("Check failed - HTTP " + std::to_string(response->status_code));
                         }
+                    - lambda: |-
+                        // Check if update was found and trigger automatic installation
+                        std::string status = id(update_status_sensor).state;
+                        if (status.find("Update available:") != std::string::npos) {
+                          ESP_LOGI("OTA", "🚀 Triggering automatic OTA installation...");
+                        }
+                    - if:
+                        condition:
+                          lambda: |-
+                            std::string status = id(update_status_sensor).state;
+                            return status.find("Update available:") != std::string::npos;
+                        then:
+                          - script.execute: perform_ota_update
                     - script.execute: notify_ota_success
           else:
             - logger.log:
