@@ -3,15 +3,7 @@
 
 # Text sensors (in desired display order)
 text_sensor:
-  # 1. Current Firmware Version (top)
-  - platform: template
-    name: "Current Firmware Version"
-    id: current_version_sensor
-    update_interval: never
-    lambda: |-
-      return {"v${current_version}"};
-
-  # 2. Device ID
+  # 1. Device ID (top)
   - platform: template
     name: "Device ID"
     id: device_id
@@ -22,14 +14,22 @@ text_sensor:
       return std::string(mac_str);
     update_interval: never
 
-  # 3. Local IP Address
+  # 2. Local IP Address
   - platform: wifi_info
     ip_address:
       name: "Local IP Address"
       id: local_ip_address
       update_interval: never
 
-  # 3. API Status  
+  # 3. Current Firmware Version
+  - platform: template
+    name: "Current Firmware Version"
+    id: current_version_sensor
+    update_interval: never
+    lambda: |-
+      return {"v${current_version}"};
+
+  # 4. API Status  
   - platform: template
     name: "API Status"
     id: api_status
@@ -41,7 +41,25 @@ text_sensor:
       }
     update_interval: never
 
-  # 4. Current Hour Color
+# Buttons (control section)
+button:
+  # 5. Check for Updates
+  - platform: template
+    name: "Check for Updates"
+    id: manual_ota_check
+    on_press:
+      - script.execute: check_firmware_update
+
+  # 6. Update LED Colors
+  - platform: template
+    name: "Update LED Colors"
+    id: update_leds
+    on_press:
+      - script.execute: simple_api_call
+
+# Text sensors (color information at bottom)
+text_sensor:
+  # 7. Current Hour Color
   - platform: template
     name: "Current Hour Color"
     id: current_color_code
@@ -49,50 +67,10 @@ text_sensor:
       return id(current_hour_color);
     update_interval: never
 
-  # 5. Next 8 Hours Colors
+  # 8. Next 8 Hours Colors (bottom)
   - platform: template
     name: "Next 8 Hours Colors"
     id: next_8_hours_colors
     lambda: |-
       return id(next_8_hours);
     update_interval: never
-
-# Buttons (in desired display order)
-button:
-  # 6. Check for Updates
-  - platform: template
-    name: "Check for Updates"
-    id: manual_ota_check
-    on_press:
-      - script.execute: check_firmware_update
-
-  # 7. Install Latest Update
-  - platform: template
-    name: "Install Latest Update" 
-    id: manual_update_install
-    on_press:
-      - if:
-          condition:
-            wifi.connected:
-          then:
-            - logger.log:
-                level: INFO
-                format: "🔄 Starting HTTP OTA update..."
-            - text_sensor.template.publish:
-                id: update_status_sensor
-                state: "Fetching update info..."
-            - script.execute: perform_ota_update
-          else:
-            - logger.log:
-                level: WARN
-                format: "⚠️  WiFi not connected - cannot install update"
-            - text_sensor.template.publish:
-                id: update_status_sensor
-                state: "No WiFi - update failed"
-
-  # 8. Update LED Colors (bottom)
-  - platform: template
-    name: "Update LED Colors"
-    id: update_leds
-    on_press:
-      - script.execute: simple_api_call

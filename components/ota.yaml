@@ -124,6 +124,7 @@ script:
                                 ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - UPDATE AVAILABLE ===");
                               } else {
                                 ESP_LOGI("OTA", "✅ Firmware is up to date - no action needed");
+                                ESP_LOGI("OTA", "   Current: %s = Latest: %s", current.c_str(), latest_version.c_str());
                                 id(update_status_sensor).publish_state("Up to date");
                                 ESP_LOGI("OTA", "=== UPDATE CHECK COMPLETE - NO UPDATES ===");
                               }

@@ -109,7 +109,12 @@ script:
                                 }
                                 id(next_8_hours) = next_hours;
                                 
+                                // Update text sensors with new values
+                                id(current_color_code).publish_state(id(current_hour_color));
+                                id(next_8_hours_colors).publish_state(id(next_8_hours));
+                                
                                 id(api_fetch_success) = true;
+                                id(api_status).publish_state("OK");
                                 
                                 // Set LED colors with API data
                                 // Define color and brightness constants
@@ -175,10 +180,12 @@ script:
                               }
                             }
                             id(api_fetch_success) = false;
+                            id(api_status).publish_state("Error");
                             return false;
                           });
                         } else {
                           id(api_fetch_success) = false;
+                          id(api_status).publish_state("Error");
                         }
           else:
             - logger.log:
