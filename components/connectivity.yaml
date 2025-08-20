@@ -23,7 +23,7 @@ wifi:
           return std::string(mac_str);
     - component.update: local_ip_address
     - script.execute: simple_api_call
-    - script.execute: notify_ota_success
+    - script.execute: check_firmware_update
 
 captive_portal:
 

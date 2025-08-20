@@ -30,17 +30,13 @@ preferences:
 
 # Enable logging with reduced verbosity to prevent log spam
 logger:
-  level: DEBUG
+  level: INFO
   logs:
     component: ERROR
     web_server: ERROR
     light: ERROR  # Silence verbose LED logging
     esp32_rmt_led_strip: ERROR
 
-# Time component for synchronization
-time:
-  - platform: sntp
-    id: system_time
 
 # Include all component configuration
 packages:
@@ -50,4 +46,3 @@ packages:
   boot: !include components/boot.yaml
   ota: !include components/ota.yaml
   interface_order: !include components/01_interface_order.yaml
-  # controls: !include components/controls.yaml

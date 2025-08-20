@@ -79,7 +79,7 @@ script:
                   then:
                     - logger.log:
                         level: INFO  
-                        format: "Got API response"
+                        format: "Got LED statusAPI response"
                     - lambda: |-
                         if (response->status_code == 200) {
                           // Parse JSON to extract color codes
