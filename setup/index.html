@@ -112,6 +112,23 @@
     Setting up Pebble <strong id="device-chip-id"></strong>
   </p>
 
+  <!-- Login gate - only shown when ACCOUNT_API is configured and there is
+       no session. Devices are then added to the signed-in account. -->
+  <section class="card hidden" id="login-card">
+    <h2>Sign in first</h2>
+    <p>Sign in to your Energy Pebble account, so this Pebble is added to
+    your account automatically once it connects.</p>
+    <div class="ble-action">
+      <a class="bigbtn" id="login-link" href="#">Sign in</a>
+    </div>
+  </section>
+
+  <!-- Success banner once the backend reports the device online -->
+  <p class="warn hidden" id="linked-note" style="border-left-color:#2ecc40;background:#eafaf0">
+    ✅ Your Pebble is online<span id="linked-account-part"> and linked to
+    your account</span>. It will start showing energy prices shortly.
+  </p>
+
   <!-- Identity fallback when the page wasn't opened via the QR sticker -->
   <section class="card" id="identify-card">
     <h2>Which Pebble is this?</h2>
@@ -201,11 +218,36 @@
   // QR deep-link: each Pebble's sticker encodes this page's URL with its
   // identity, e.g. /setup/?d=a1b2c3d4e5f6&s=<per-device-secret>. Scanning
   // with the phone camera lands here with the device pre-identified.
+  // ===== Account gate configuration =====
+  // Backend contract (dashboard repo - see PROVISIONING.md). While null the
+  // page works without accounts. Set to e.g. "https://energypebble.tdlx.nl"
+  // once these endpoints exist:
+  //   GET  {base}/api/me                      200 when signed in, 401 if not
+  //   {base}/login?next=<url>                 login page, returns to <url>
+  //   POST {base}/api/devices/claim           {device_id, secret} w/ session
+  //   GET  {base}/api/devices/<id>/status     {"online": true|false}
+  const ACCOUNT_API = null;
+
   const params = new URLSearchParams(location.search);
   let claimSecret = params.get("s") || "";
   let deviceId = "";
   let qrSuffix = "";
-  let onIdentified = () => {};  // set by the BLE block to unlock its button
+  let loggedIn = false;
+  const bleSupported = !!(navigator.bluetooth && window.isSecureContext);
+
+  const show = (id, visible) =>
+    document.getElementById(id).classList.toggle("hidden", !visible);
+
+  // Single source of truth for which step is visible.
+  const render = () => {
+    const needLogin = !!ACCOUNT_API && !loggedIn;
+    show("login-card", needLogin);
+    show("device-chip", !needLogin && !!deviceId);
+    show("identify-card", !needLogin && !deviceId);
+    show("ble-card", !needLogin && bleSupported && !!deviceId);
+    show("portal-card", !needLogin);
+    document.getElementById("connect-btn").disabled = !deviceId;
+  };
 
   // Accepts a full 12-hex device ID or its last-6 suffix; tolerates colons,
   // dashes, spaces and uppercase as people copy MACs in many formats.
@@ -215,17 +257,66 @@
     deviceId = clean;
     qrSuffix = clean.slice(-6);
     document.getElementById("device-chip-id").textContent = qrSuffix;
-    document.getElementById("device-chip").classList.remove("hidden");
-    document.getElementById("identify-card").classList.add("hidden");
     // Keep the ID across a reload / share of the URL.
     const url = new URL(location);
     url.searchParams.set("d", clean);
     history.replaceState(null, "", url);
-    onIdentified();
+    render();
+    claimAndWatch();
     return true;
   };
 
+  // ===== Account linking (inactive while ACCOUNT_API is null) =====
+  const checkLogin = async () => {
+    if (!ACCOUNT_API) return;
+    try {
+      const r = await fetch(`${ACCOUNT_API}/api/me`, { credentials: "include" });
+      loggedIn = r.ok;
+    } catch { loggedIn = false; }
+    document.getElementById("login-link").href =
+      `${ACCOUNT_API}/login?next=${encodeURIComponent(location.href)}`;
+    render();
+  };
+
+  // Claim the device for the signed-in account (needs the QR secret), then
+  // poll until the backend has seen it online - works for both the BLE and
+  // the captive-portal path, since the device phones home either way.
+  let watchTimer = null;
+  const claimAndWatch = async () => {
+    if (!ACCOUNT_API || !loggedIn || !deviceId) return;
+    if (claimSecret && deviceId.length === 12) {
+      try {
+        await fetch(`${ACCOUNT_API}/api/devices/claim`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ device_id: deviceId, secret: claimSecret }),
+        });
+      } catch (err) { console.error("Claim failed", err); }
+    } else {
+      // Manually typed IDs carry no secret - the device still gets set up,
+      // it just isn't linked; hide the "linked to account" wording.
+      document.getElementById("linked-account-part").classList.add("hidden");
+    }
+    clearInterval(watchTimer);
+    const deadline = Date.now() + 10 * 60 * 1000;
+    watchTimer = setInterval(async () => {
+      if (Date.now() > deadline) return clearInterval(watchTimer);
+      try {
+        const r = await fetch(
+          `${ACCOUNT_API}/api/devices/${deviceId}/status`,
+          { credentials: "include" });
+        if (r.ok && (await r.json()).online) {
+          clearInterval(watchTimer);
+          show("linked-note", true);
+        }
+      } catch {}
+    }, 5000);
+  };
+
+  await checkLogin();
   setDeviceId(params.get("d"));
+  render();
 
   // Manual fallback for users who opened the page without scanning the QR.
   document.getElementById("identify-form").addEventListener("submit", (ev) => {
@@ -310,40 +401,21 @@
     });
   }
 
-  // STUB - account linking (claim API, backend repo, not built yet):
-  // once it ships, when deviceId && claimSecret are present:
-  //   1. ensure the user is logged in (redirect to dashboard login and back),
-  //   2. POST /api/devices/claim {device_id: deviceId, secret: claimSecret},
-  //   3. after provisioning, poll /api/devices/<id>/status until the device
-  //      phones home, then show "connected and linked to your account".
-  // Until then the page only uses the identity to label and verify the
-  // device. Note: manual ID entry carries no secret, so claiming will
-  // require the QR (or typing the sticker's setup code) once it exists.
-
-  // Show the one-tap Bluetooth path only where Web Bluetooth exists
+  // Wire the one-tap Bluetooth path only where Web Bluetooth exists
   // (Chrome/Edge on Android & desktop). iOS Safari and Firefox fall
-  // through to the always-visible captive portal steps.
-  if (navigator.bluetooth && window.isSecureContext) {
+  // through to the captive portal steps. The card itself is revealed by
+  // render() only after login (when gated) and device identification;
+  // the requestDevice call below filters on the exact advertised name
+  // "energy-pebble-<suffix>" (name_add_mac_suffix in firmware), so the
+  // browser's picker never offers neighboring Pebbles or arbitrary
+  // Improv/ESP32 devices.
+  if (bleSupported) {
     document.getElementById("portal-title").textContent =
       "Or connect via the setup network";
 
-    const bleCard = document.getElementById("ble-card");
     const btn = document.getElementById("connect-btn");
     const status = document.getElementById("ble-status");
     const spinner = status.querySelector(".spinner");
-
-    // GATE: the whole one-tap card stays hidden (and the button locked)
-    // until the device identity is known (QR scan or manual entry). The
-    // Bluetooth request then filters on the exact advertised name
-    // "energy-pebble-<suffix>" (name_add_mac_suffix in firmware), so the
-    // browser's picker never offers neighboring Pebbles or arbitrary
-    // Improv/ESP32 devices.
-    const updateGate = () => {
-      bleCard.classList.toggle("hidden", !qrSuffix);
-      btn.disabled = !qrSuffix;
-    };
-    updateGate();
-    onIdentified = updateGate;
 
     // Improv BLE service UUID (same one the vendored SDK filters on).
     const IMPROV_SERVICE = "00467768-6228-2272-4663-277478268000";
