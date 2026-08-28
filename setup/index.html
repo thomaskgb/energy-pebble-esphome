@@ -82,9 +82,16 @@
     <p>Your browser can talk to the Pebble directly. Tap the button, pick
     <strong>energy-pebble</strong> from the list, then choose your Wi-Fi
     network and enter its password.</p>
-    <improv-wifi-launch-button>
+    <improv-wifi-launch-button id="launch-btn">
       <button slot="activate" class="bigbtn">Connect Energy Pebble</button>
     </improv-wifi-launch-button>
+    <p class="note hidden" id="ble-status" role="status">
+      Your browser is now scanning: a window lists nearby Pebbles. Make sure
+      yours is <strong>plugged in, close by, and slowly pulsing blue</strong>,
+      then select <strong>energy-pebble</strong> and tap <em>Pair</em>. If the
+      list stays empty or you closed the window, unplug the Pebble, plug it
+      back in, and tap the button again — or use the manual steps below.
+    </p>
     <p class="note">Doesn't work? Use the manual steps below — they work on
     every phone.</p>
   </section>
@@ -134,6 +141,12 @@
     document.getElementById("ble-card").classList.remove("hidden");
     document.getElementById("portal-title").textContent =
       "Or connect via the setup network";
+    // The SDK opens the browser's device picker silently and closes without
+    // a message when it is cancelled or finds nothing. Show guidance as soon
+    // as the user taps, so they are never left staring at an empty picker.
+    document.getElementById("launch-btn").addEventListener("click", () => {
+      document.getElementById("ble-status").classList.remove("hidden");
+    });
   }
 </script>
 </body>
