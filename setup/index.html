@@ -149,9 +149,6 @@
     <div class="ble-action">
       <button id="connect-btn" class="bigbtn" disabled>Connect Energy Pebble</button>
     </div>
-    <p class="note" id="gate-note">First scan the QR code on the sticker (or
-    type its ID above) — that unlocks this button, and your browser will
-    only offer <strong>your</strong> Pebble.</p>
     <p class="note hidden" id="ble-status" role="status">
       <span class="spinner" aria-hidden="true"></span>
       Scanning… a window will show your Pebble. Make sure it is
@@ -327,23 +324,23 @@
   // (Chrome/Edge on Android & desktop). iOS Safari and Firefox fall
   // through to the always-visible captive portal steps.
   if (navigator.bluetooth && window.isSecureContext) {
-    document.getElementById("ble-card").classList.remove("hidden");
     document.getElementById("portal-title").textContent =
       "Or connect via the setup network";
 
+    const bleCard = document.getElementById("ble-card");
     const btn = document.getElementById("connect-btn");
-    const gateNote = document.getElementById("gate-note");
     const status = document.getElementById("ble-status");
     const spinner = status.querySelector(".spinner");
 
-    // GATE: the connect button stays locked until the device identity is
-    // known (QR scan or manual entry). The Bluetooth request then filters
-    // on the exact advertised name "energy-pebble-<suffix>"
-    // (name_add_mac_suffix in firmware), so the browser's picker never
-    // offers neighboring Pebbles or arbitrary Improv/ESP32 devices.
+    // GATE: the whole one-tap card stays hidden (and the button locked)
+    // until the device identity is known (QR scan or manual entry). The
+    // Bluetooth request then filters on the exact advertised name
+    // "energy-pebble-<suffix>" (name_add_mac_suffix in firmware), so the
+    // browser's picker never offers neighboring Pebbles or arbitrary
+    // Improv/ESP32 devices.
     const updateGate = () => {
+      bleCard.classList.toggle("hidden", !qrSuffix);
       btn.disabled = !qrSuffix;
-      gateNote.classList.toggle("hidden", !!qrSuffix);
     };
     updateGate();
     onIdentified = updateGate;
