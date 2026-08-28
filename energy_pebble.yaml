@@ -38,6 +38,13 @@ logger:
     esp32_rmt_led_strip: ERROR
 
 
+# Local external components (Ed25519 OTA signature verification)
+external_components:
+  - source:
+      type: local
+      path: esphome/components
+    components: [ota_signature]
+
 # Include all component configuration
 packages:
   connectivity: !include components/connectivity.yaml

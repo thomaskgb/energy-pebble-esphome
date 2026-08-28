@@ -5,6 +5,15 @@
 http_request:
   useragent: ESPHome
   timeout: 15s
+  # verify_ssl: true is a hard config error on ESP32 + the Arduino framework in
+  # ESPHome <= 2025.x ("ESPHome supports certificate verification only via
+  # ESP-IDF"), and this project builds with framework: arduino. TLS server
+  # authentication is therefore NOT available on this build; firmware
+  # authenticity is instead guaranteed end-to-end by the Ed25519 signature
+  # check (ota_signature component), which does not trust the channel at all.
+  # TODO: migrate to the esp-idf framework (or ESPHome >= 2026.x, where ESP32
+  # Arduino uses the IDF HTTP client) and flip this to true — see
+  # DEVICE_SIGNING.md.
   verify_ssl: false
   id: http_request_data
   watchdog_timeout: 15s
