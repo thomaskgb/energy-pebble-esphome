@@ -1,27 +1,74 @@
-# Boot sequence component for Energy Pebble
-# Handles LED animations during startup
+# Boot / provisioning status LEDs for Energy Pebble
+#
+# Replaces the old "pulse yellow for everything" boot sequence with a state
+# machine on the center LED so a non-technical user can tell what the device
+# is doing (see PROVISIONING.md for the user-facing wording):
+#
+#   Blue, slow pulse    - setup mode: no Wi-Fi credentials yet, the
+#                         "Energy Pebble" setup network / Improv BLE is
+#                         waiting for the user
+#   Yellow, slow pulse  - connecting: credentials exist (or were just
+#                         received via Improv) and the device is trying them
+#   Red, slow blink     - can't connect: credentials exist but the network
+#                         is unreachable or the password is wrong; the setup
+#                         network is available again for re-entry
+#   Normal colors       - connected and painting API data (loop exits)
+#
+# All transitions are >= 1s fades - no strobing, reduced-motion friendly.
 
-# Boot sequence - pulse yellow LEDs during startup
+globals:
+  # 0 = connecting (yellow), 1 = setup mode (blue),
+  # 2 = can't connect (red), 3 = connected, waiting for first data (green)
+  - id: status_led_state
+    type: int
+    initial_value: '0'
+
 script:
+  # Keeps its historical id so energy_pebble.yaml's on_boot hook is unchanged.
   - id: boot_led_sequence
     then:
       - logger.log:
           level: INFO
-          format: "Starting boot LED sequence - pulsing yellow"
+          format: "Status LED loop started"
       - while:
           condition:
             lambda: 'return !id(leds_set_from_api);'
           then:
-            # Pulse center LED only - yellow (dim to bright to dim)
+            - lambda: |-
+                // Decide the current provisioning state once per cycle.
+                auto *w = wifi::global_wifi_component;
+                bool connected = w != nullptr && w->is_connected();
+                bool have_creds = w != nullptr && w->has_sta();
+                bool ap_active = captive_portal::global_captive_portal != nullptr &&
+                                 captive_portal::global_captive_portal->is_active();
+                int state;
+                if (connected) {
+                  state = 3;  // green: online, waiting for first API paint
+                } else if (id(improv_provisioning_active)) {
+                  state = 0;  // yellow: trying credentials just sent via Improv
+                } else if (ap_active && !have_creds) {
+                  state = 1;  // blue: fresh device waiting for setup
+                } else if (ap_active && have_creds) {
+                  state = 2;  // red: has credentials but can't connect
+                } else {
+                  state = 0;  // yellow: connecting with stored credentials
+                }
+                if (state != id(status_led_state)) {
+                  static const char *NAMES[] = {"connecting (yellow)", "setup mode (blue)",
+                                                "can't connect (red)", "online (green)"};
+                  ESP_LOGI("status_led", "State -> %s", NAMES[state]);
+                }
+                id(status_led_state) = state;
+            # One 2s pulse cycle in the state's color: dim -> bright -> dim.
+            # Red uses a deeper "blink" (fades to near-off) to stand apart.
             - light.turn_on:
                 id: center_led
-                brightness: 20%
-                red: 100%
-                green: 100%
-                blue: 0%
+                brightness: !lambda 'return id(status_led_state) == 2 ? 0.02f : 0.20f;'
+                red: !lambda 'return (id(status_led_state) == 0 || id(status_led_state) == 2) ? 1.0f : 0.0f;'
+                green: !lambda 'return (id(status_led_state) == 0 || id(status_led_state) == 3) ? 1.0f : 0.0f;'
+                blue: !lambda 'return id(status_led_state) == 1 ? 1.0f : 0.0f;'
                 transition_length: 1s
             - delay: 1s
-            # Brighten center LED to 60%
             - light.turn_on:
                 id: center_led
                 brightness: 60%
@@ -29,7 +76,7 @@ script:
             - delay: 1s
       - logger.log:
           level: INFO
-          format: "Boot sequence complete - LEDs set with API colors"
+          format: "Status LED loop complete - LEDs set with API colors"
       # Update device info sensors on boot
       - text_sensor.template.publish:
           id: device_id

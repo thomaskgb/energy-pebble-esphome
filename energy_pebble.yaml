@@ -41,6 +41,7 @@ logger:
 # Include all component configuration
 packages:
   connectivity: !include components/connectivity.yaml
+  provisioning: !include components/provisioning.yaml
   leds: !include components/leds.yaml
   api: !include components/api.yaml
   boot: !include components/boot.yaml

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Energy Pebble – Wi-Fi Setup</title>
+  <!--
+    Companion setup page for the Energy Pebble.
+    Host this folder (including vendor/) over HTTPS, e.g. at
+    https://energypebble.tdlx.nl/setup/ - Web Bluetooth only works on
+    HTTPS or localhost. The Improv SDK is vendored (self-hosted), no
+    third-party requests are made.
+  -->
+  <style>
+    :root {
+      --green: #2ecc40;
+      --yellow: #f1c40f;
+      --red: #e74c3c;
+      --blue: #3498db;
+      --ink: #223;
+      --paper: #f7f8fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+    }
+    main { max-width: 34rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+    header { text-align: center; padding: 2rem 0 0.5rem; }
+    .pebble {
+      width: 72px; height: 72px; border-radius: 50%;
+      margin: 0 auto 0.75rem;
+      background: radial-gradient(circle at 50% 45%, var(--green) 0 22%, #fff 26% 55%, var(--yellow) 58% 100%);
+      box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+    .sub { color: #667; margin: 0 0 1.5rem; text-align: center; }
+    .card {
+      background: #fff; border-radius: 12px; padding: 1.25rem 1.25rem 1.4rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1.25rem;
+    }
+    .card h2 { font-size: 1.1rem; margin: 0 0 0.6rem; }
+    ol { margin: 0.5rem 0 0; padding-left: 1.3rem; }
+    ol li { margin-bottom: 0.55rem; }
+    .hidden { display: none; }
+    improv-wifi-launch-button button, .bigbtn {
+      display: inline-block; font-size: 1rem; padding: 0.7rem 1.6rem;
+      border: none; border-radius: 8px; cursor: pointer;
+      background: var(--blue); color: #fff; font-weight: 600;
+    }
+    .note { font-size: 0.85rem; color: #667; margin-top: 0.75rem; }
+    .led-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .led-table td { padding: 0.4rem 0.5rem; border-top: 1px solid #eef; }
+    .dot {
+      display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 50%;
+      vertical-align: -0.1rem; margin-right: 0.35rem;
+    }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+    @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+    code { background: #eef1f5; padding: 0.1rem 0.35rem; border-radius: 4px; }
+    a { color: var(--blue); }
+    footer { text-align: center; font-size: 0.8rem; color: #99a; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="pebble" aria-hidden="true"></div>
+    <h1>Energy Pebble setup</h1>
+  </header>
+  <p class="sub">Plug in your Energy Pebble. When the middle light slowly
+  pulses <strong style="color:var(--blue)">blue</strong>, it is ready to be
+  connected to your Wi-Fi.</p>
+
+  <!-- Path 1: Web Bluetooth (Chrome / Edge on Android & desktop) -->
+  <section class="card hidden" id="ble-card">
+    <h2>Connect with one tap</h2>
+    <p>Your browser can talk to the Pebble directly. Tap the button, pick
+    <strong>energy-pebble</strong> from the list, then choose your Wi-Fi
+    network and enter its password.</p>
+    <improv-wifi-launch-button>
+      <button slot="activate" class="bigbtn">Connect Energy Pebble</button>
+    </improv-wifi-launch-button>
+    <p class="note">Doesn't work? Use the manual steps below — they work on
+    every phone.</p>
+  </section>
+
+  <!-- Path 2: captive portal (works everywhere, incl. iPhone) -->
+  <section class="card" id="portal-card">
+    <h2 id="portal-title">Connect via the setup network</h2>
+    <ol>
+      <li>On your phone, open <strong>Settings → Wi-Fi</strong>.</li>
+      <li>Join the network called <strong>Energy Pebble</strong> (no password).</li>
+      <li>A setup page opens by itself. If it doesn't, open your browser and
+          go to <code>192.168.4.1</code>.</li>
+      <li>Pick your home Wi-Fi network, type its password, and press
+          <strong>Save</strong>.</li>
+      <li>Your phone will drop off the setup network — that's normal. The
+          Pebble is now joining your Wi-Fi.</li>
+    </ol>
+  </section>
+
+  <!-- What the light means -->
+  <section class="card">
+    <h2>What the middle light means</h2>
+    <table class="led-table">
+      <tr><td><span class="dot pulse" style="background:var(--blue)"></span>Blue, slow pulse</td>
+          <td>Waiting for setup — follow the steps above</td></tr>
+      <tr><td><span class="dot pulse" style="background:var(--yellow)"></span>Yellow, slow pulse</td>
+          <td>Connecting to your Wi-Fi</td></tr>
+      <tr><td><span class="dot pulse" style="background:var(--red)"></span>Red, slow blink</td>
+          <td>Couldn't connect — password may be wrong. Redo the steps above</td></tr>
+      <tr><td><span class="dot" style="background:var(--green)"></span>Steady colors</td>
+          <td>Done! The Pebble is showing energy prices</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <p>Once connected, prices update automatically.
+    Dashboard: <a href="https://energypebble.tdlx.nl">energypebble.tdlx.nl</a></p>
+  </footer>
+</main>
+
+<script type="module">
+  // Show the one-tap Bluetooth path only where Web Bluetooth exists
+  // (Chrome/Edge on Android & desktop). iOS Safari and Firefox fall
+  // through to the always-visible captive portal steps.
+  if (navigator.bluetooth && window.isSecureContext) {
+    await import("./vendor/improv-wifi-sdk/launch-button.js");
+    document.getElementById("ble-card").classList.remove("hidden");
+    document.getElementById("portal-title").textContent =
+      "Or connect via the setup network";
+  }
+</script>
+</body>
+</html>
