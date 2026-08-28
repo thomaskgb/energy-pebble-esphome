@@ -74,6 +74,10 @@
       background: #fdf3e7; border-left: 4px solid #e67e22;
       padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.9rem;
     }
+    .scanner { margin-top: 0.75rem; text-align: center; }
+    .scanner video {
+      width: 100%; max-height: 60vh; border-radius: 10px; background: #000;
+    }
     .identify-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
     .identify-row input {
       flex: 1; min-width: 0; font-size: 1rem; padding: 0.6rem 0.8rem;
@@ -111,9 +115,18 @@
   <!-- Identity fallback when the page wasn't opened via the QR sticker -->
   <section class="card" id="identify-card">
     <h2>Which Pebble is this?</h2>
-    <p>Scan the <strong>QR code on the sticker</strong> with your camera app
-    — it brings you right back here. Or type the device ID from the sticker
-    (letters and numbers, no colons):</p>
+    <p>Scan the <strong>QR code on the sticker</strong>, or type the device
+    ID printed next to it:</p>
+    <div class="ble-action">
+      <button id="scan-btn" class="bigbtn">📷 Scan QR code</button>
+    </div>
+    <div class="scanner hidden" id="scanner">
+      <video id="scanner-video" playsinline muted></video>
+      <p class="note">Point the camera at the sticker on the back of your
+      Pebble. <a href="#" id="scanner-close">Cancel</a></p>
+    </div>
+    <p class="note hidden" id="scanner-error">Camera not available or
+    blocked — type the ID instead:</p>
     <form id="identify-form" class="identify-row">
       <input id="device-id-input" inputmode="text" autocomplete="off"
              spellcheck="false" placeholder="e.g. a1b2c3d4e5f6"
@@ -192,7 +205,7 @@
   // identity, e.g. /setup/?d=a1b2c3d4e5f6&s=<per-device-secret>. Scanning
   // with the phone camera lands here with the device pre-identified.
   const params = new URLSearchParams(location.search);
-  const claimSecret = params.get("s") || "";
+  let claimSecret = params.get("s") || "";
   let deviceId = "";
   let qrSuffix = "";
   let onIdentified = () => {};  // set by the BLE block to unlock its button
@@ -223,6 +236,82 @@
     const ok = setDeviceId(document.getElementById("device-id-input").value);
     document.getElementById("device-id-error").classList.toggle("hidden", ok);
   });
+
+  // In-page QR scanner, for users who reached the page before scanning the
+  // sticker. Decoding is done locally with the vendored jsQR (loaded lazily,
+  // only when the user taps Scan); the camera image never leaves the page.
+  {
+    const scannerBox = document.getElementById("scanner");
+    const video = document.getElementById("scanner-video");
+    const scanErr = document.getElementById("scanner-error");
+    let stream = null;
+    let scanTimer = null;
+
+    const stopScanner = () => {
+      clearInterval(scanTimer);
+      scanTimer = null;
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+      video.srcObject = null;
+      scannerBox.classList.add("hidden");
+    };
+
+    const loadJsQR = () => new Promise((resolve, reject) => {
+      if (window.jsQR) return resolve();
+      const s = document.createElement("script");
+      s.src = "./vendor/jsQR.js";
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+
+    // The sticker QR is this page's URL with ?d= and ?s=; accept a bare
+    // device ID too (e.g. a QR that predates the URL format).
+    const handleScan = (text) => {
+      try {
+        const url = new URL(text);
+        const d = url.searchParams.get("d");
+        if (d) {
+          claimSecret = url.searchParams.get("s") || claimSecret;
+          return setDeviceId(d);
+        }
+      } catch {}
+      return setDeviceId(text);
+    };
+
+    document.getElementById("scan-btn").addEventListener("click", async () => {
+      scanErr.classList.add("hidden");
+      try {
+        await loadJsQR();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+      } catch (err) {
+        console.error("Camera unavailable", err);
+        scanErr.classList.remove("hidden");
+        return;
+      }
+      scannerBox.classList.remove("hidden");
+      video.srcObject = stream;
+      await video.play();
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      scanTimer = setInterval(() => {
+        if (!video.videoWidth) return;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR(img.data, img.width, img.height);
+        if (code?.data && handleScan(code.data)) stopScanner();
+      }, 300);
+    });
+
+    document.getElementById("scanner-close").addEventListener("click", (ev) => {
+      ev.preventDefault();
+      stopScanner();
+    });
+  }
 
   // STUB - account linking (claim API, backend repo, not built yet):
   // once it ships, when deviceId && claimSecret are present:

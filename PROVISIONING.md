@@ -120,9 +120,12 @@ Decided design (page side implemented here; **backend not built yet**):
 - `name_add_mac_suffix: true` is enabled: devices advertise/host as
   `energy-pebble-<last 6 MAC hex>`.
 - **The BLE connect step is gated on identity**: the button stays locked
-  until the user scans the QR or types the device ID (full 12-hex MAC or
-  last-6 suffix, colons/case tolerated) into the "Which Pebble is this?"
-  field. The page then calls `requestDevice` itself, filtering on the Improv
+  until the user identifies the device — by opening the page from the QR
+  deep-link, scanning the sticker with the **in-page scanner** ("Scan QR
+  code": getUserMedia + vendored `jsqr@1.4.0`, lazy-loaded, decoded locally;
+  this path also captures the claim secret), or typing the device ID (full
+  12-hex MAC or last-6 suffix, colons/case tolerated) into the "Which
+  Pebble is this?" field. The page then calls `requestDevice` itself, filtering on the Improv
   service **and the exact name** `energy-pebble-<suffix>` — the browser
   picker never offers neighboring Pebbles or arbitrary Improv/ESP32 devices.
   (The SDK's stock launch button, which lists every Improv device, is no
@@ -169,6 +172,9 @@ Nothing below has run on hardware — this branch was compile-checked only
    back to `namePrefix` + post-pick suffix check).
 2. **Captive portal on iOS Safari**: portal auto-opens after joining
    "Energy Pebble", provisioning works, phone falls back to home Wi-Fi.
+   Also test the in-page QR scanner on iOS Safari and Android Chrome
+   (camera permission prompt, decode speed, permission-denied fallback to
+   manual entry).
 3. **LED state transitions**: fresh device → blue; during connect → yellow;
    wrong password → red after ap_timeout (~1 min); success → green → price
    colors. Verify `has_sta()` / `captive_portal->is_active()` heuristics
