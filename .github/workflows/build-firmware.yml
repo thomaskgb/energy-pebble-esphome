@@ -6,7 +6,7 @@ on:
       - 'v*'  # Trigger on version tags like v1.2.0
 
 env:
-  ESPHOME_VERSION: "2024.6.0"
+  ESPHOME_VERSION: "2025.6.0"
 
 jobs:
   build-firmware:
@@ -29,7 +29,7 @@ jobs:
           
       - name: Install ESPHome
         run: |
-          pip install esphome==2025.6.0
+          pip install esphome==${ESPHOME_VERSION}
           
       - name: Create secrets files
         run: |

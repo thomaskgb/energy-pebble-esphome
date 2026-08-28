@@ -1,0 +1,60 @@
+name: Compile Check
+
+# Build-check every branch push and PR. Compile only — nothing is signed,
+# uploaded, or released here (that happens in build-firmware.yml on v* tags).
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+concurrency:
+  group: compile-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ESPHOME_VERSION: "2025.6.0"
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: platformio-${{ runner.os }}-esphome-${{ env.ESPHOME_VERSION }}
+
+      - name: Install ESPHome
+        run: |
+          pip install esphome==${ESPHOME_VERSION}
+
+      - name: Create dummy secrets
+        run: |
+          # CI-only dummy values; the compile never talks to real WiFi/OTA.
+          # The all-zero signing pubkey placeholder compiles fine (the
+          # resulting firmware would refuse OTA updates, which is irrelevant
+          # for a compile check).
+          cat > secrets.yaml << EOF
+          wifi_ssid: "ci-dummy"
+          wifi_password: "ci-dummy-password"
+          ota_password: "ci-dummy-password"
+          firmware_signing_pubkey: "0000000000000000000000000000000000000000000000000000000000000000"
+          EOF
+          cp secrets.yaml components/secrets.yaml
+
+      - name: Compile firmware
+        env:
+          version: 0.0.0
+        run: |
+          esphome compile energy_pebble.yaml
