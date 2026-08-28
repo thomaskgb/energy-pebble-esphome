@@ -6,10 +6,11 @@
   <title>Energy Pebble – Wi-Fi Setup</title>
   <!--
     Companion setup page for the Energy Pebble.
-    Host this folder (including vendor/) over HTTPS, e.g. at
-    https://energypebble.tdlx.nl/setup/ - Web Bluetooth only works on
-    HTTPS or localhost. The Improv SDK is vendored (self-hosted), no
-    third-party requests are made.
+    CANONICAL SOURCE: energy-pebble-esphome repo, setup/. A verbatim copy is
+    deployed as static/setup/ in the energy-pebble-api repo (served by Caddy
+    at https://energypebble.tdlx.nl/setup/) - edit here, then re-sync.
+    Web Bluetooth only works on HTTPS or localhost. The Improv SDK and jsQR
+    are vendored (self-hosted); no third-party requests are made.
   -->
   <style>
     :root {
@@ -219,14 +220,15 @@
   // identity, e.g. /setup/?d=a1b2c3d4e5f6&s=<per-device-secret>. Scanning
   // with the phone camera lands here with the device pre-identified.
   // ===== Account gate configuration =====
-  // Backend contract (dashboard repo - see PROVISIONING.md). While null the
-  // page works without accounts. Set to e.g. "https://energypebble.tdlx.nl"
-  // once these endpoints exist:
-  //   GET  {base}/api/me                      200 when signed in, 401 if not
-  //   {base}/login?next=<url>                 login page, returns to <url>
-  //   POST {base}/api/devices/claim           {device_id, secret} w/ session
-  //   GET  {base}/api/devices/<id>/status     {"online": true|false}
-  const ACCOUNT_API = null;
+  // The page is served from energypebble.tdlx.nl (same origin as the API,
+  // energy-pebble-api repo), behind Authelia. Endpoints used:
+  //   GET  /api/verify                        200 when signed in, 401 if not
+  //   https://auth.tdlx.nl/?rd=<url>          Authelia portal, returns to url
+  //   POST /api/user/devices/claim            {device_id, secret?, nickname?}
+  //   GET  /api/user/devices/<id>/status      {"online": true|false, ...}
+  // The gate is skipped on localhost so the page can be developed standalone.
+  const ACCOUNT_GATE = !["localhost", "127.0.0.1"].includes(location.hostname);
+  const AUTH_PORTAL = "https://auth.tdlx.nl";
 
   const params = new URLSearchParams(location.search);
   let claimSecret = params.get("s") || "";
@@ -240,7 +242,7 @@
 
   // Single source of truth for which step is visible.
   const render = () => {
-    const needLogin = !!ACCOUNT_API && !loggedIn;
+    const needLogin = ACCOUNT_GATE && !loggedIn;
     show("login-card", needLogin);
     show("device-chip", !needLogin && !!deviceId);
     show("identify-card", !needLogin && !deviceId);
@@ -266,15 +268,15 @@
     return true;
   };
 
-  // ===== Account linking (inactive while ACCOUNT_API is null) =====
+  // ===== Account linking =====
   const checkLogin = async () => {
-    if (!ACCOUNT_API) return;
+    if (!ACCOUNT_GATE) return;
     try {
-      const r = await fetch(`${ACCOUNT_API}/api/me`, { credentials: "include" });
+      const r = await fetch("/api/verify", { credentials: "include" });
       loggedIn = r.ok;
     } catch { loggedIn = false; }
     document.getElementById("login-link").href =
-      `${ACCOUNT_API}/login?next=${encodeURIComponent(location.href)}`;
+      `${AUTH_PORTAL}/?rd=${encodeURIComponent(location.href)}`;
     render();
   };
 
@@ -282,32 +284,41 @@
   // poll until the backend has seen it online - works for both the BLE and
   // the captive-portal path, since the device phones home either way.
   let watchTimer = null;
+  let claimed = false;
+  // The backend accepts the QR secret as proof of possession, or - when no
+  // secret is present - the device being online on the same network as the
+  // user. The latter can only succeed after the device phones home, so the
+  // claim is retried from the status poll below.
+  const tryClaim = async () => {
+    if (claimed || deviceId.length !== 12) return;
+    try {
+      const r = await fetch("/api/user/devices/claim", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: deviceId, secret: claimSecret || null }),
+      });
+      claimed = r.ok;
+    } catch (err) { console.error("Claim failed", err); }
+  };
   const claimAndWatch = async () => {
-    if (!ACCOUNT_API || !loggedIn || !deviceId) return;
-    if (claimSecret && deviceId.length === 12) {
-      try {
-        await fetch(`${ACCOUNT_API}/api/devices/claim`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ device_id: deviceId, secret: claimSecret }),
-        });
-      } catch (err) { console.error("Claim failed", err); }
-    } else {
-      // Manually typed IDs carry no secret - the device still gets set up,
-      // it just isn't linked; hide the "linked to account" wording.
-      document.getElementById("linked-account-part").classList.add("hidden");
-    }
+    // Polling needs the full 12-hex ID; a typed last-6 suffix is only used
+    // to filter the Bluetooth picker.
+    if (!ACCOUNT_GATE || !loggedIn || deviceId.length !== 12) return;
+    await tryClaim();
     clearInterval(watchTimer);
     const deadline = Date.now() + 10 * 60 * 1000;
     watchTimer = setInterval(async () => {
       if (Date.now() > deadline) return clearInterval(watchTimer);
       try {
-        const r = await fetch(
-          `${ACCOUNT_API}/api/devices/${deviceId}/status`,
-          { credentials: "include" });
-        if (r.ok && (await r.json()).online) {
+        const r = await fetch(`/api/user/devices/${deviceId}/status`,
+                              { credentials: "include" });
+        if (!r.ok) return;
+        const st = await r.json();
+        if (st.online) {
+          await tryClaim();  // same-network proof works once it phones home
           clearInterval(watchTimer);
+          show("linked-account-part", claimed || st.claimed_by_you);
           show("linked-note", true);
         }
       } catch {}

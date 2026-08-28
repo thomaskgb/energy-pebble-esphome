@@ -136,15 +136,25 @@ Decided design (page side implemented here; **backend not built yet**):
   ⚠️ Side effect on fielded devices after OTA: hostname/mDNS changes from
   `energy-pebble.local` to `energy-pebble-xxxxxx.local` (AP SSID and backend
   X-Device-ID identity are unchanged; OTA is pull-based and unaffected).
-- Intended full flow once the backend ships (stub marked in
-  `setup/index.html`): login → claim (`POST /api/devices/claim` with id +
-  secret) → provision Wi-Fi (BLE or captive portal — claiming needs no
-  Bluetooth, so iPhone works too) → page polls a device-status endpoint
-  until the device phones home → "connected and linked to your account".
-  Claiming stays a **skippable step**, not a wall: re-provisioning after a
-  router change or setup-by-a-caretaker must keep working without login.
-- Backend work (other repo): per-device secrets at manufacturing, claim
-  endpoint, device-status endpoint, sticker printing.
+- **Login-gated flow (implemented, page + backend)**: the page is served
+  same-origin with the API (deployed copy: `static/setup/` in the
+  `energy-pebble-api` repo, branch `thomaskgb/device-claim-api`) and checks
+  the Authelia session via `GET /api/verify`; unauthenticated users get a
+  sign-in card linking to `https://auth.tdlx.nl/?rd=<here>`. After
+  identification the page claims via `POST /api/user/devices/claim`
+  (`{device_id, secret?, nickname?}`) and polls
+  `GET /api/user/devices/<id>/status` until the device phones home, then
+  shows "online and linked". Works for the iPhone captive-portal path too.
+  The gate is skipped on `localhost` for standalone page development.
+- **Proof of possession** (backend): the QR secret (bcrypt-hashed in the new
+  `device_secrets` table), or — when no secret is available — the device
+  being online from the same public IP as the user (claim is retried from
+  the status poll once the device phones home). Claimed-by-someone-else
+  → 409. Admins mint sticker secrets with
+  `POST /api/admin/devices/{device_id}/secret`, which returns the plaintext
+  secret once plus the ready-to-print `qr_url`.
+- Remaining backend/manufacturing work: sticker printing pipeline, and a
+  support flow for transferring a device between accounts.
 
 ESPHome's Improv has no device-side `next_url` option; the dashboard link on
 the page is the hand-off.
