@@ -108,14 +108,34 @@ the SDK, re-vendor `dist/web/*` from the npm package.
 
 **Branding:** plain CSS in the file head; colors match the LED palette.
 
-## Post-provision hand-off (deliberately minimal)
+## Device identity & account pairing (QR flow)
 
-ESPHome's Improv implementations advertise the device's own web-server URL
-after success; there is no device-side `next_url` option to point elsewhere.
-The clean hook for the dashboard is the **companion page**: after the Improv
-dialog reports success, the page links to `https://energypebble.tdlx.nl`.
-Device↔account pairing (per-device QR/secret) is a **separate, not-yet-built
-flow** — nothing here should grow account logic.
+Decided design (page side implemented here; **backend not built yet**):
+
+- Every Pebble gets a factory **QR sticker** encoding
+  `https://energypebble.tdlx.nl/setup/?d=<device-id>&s=<per-device-secret>`.
+  Scanning with the normal camera app opens the setup page with the device
+  pre-identified — no in-page QR scanner needed. The secret (not the MAC,
+  which is enumerable) is what proves possession for claiming.
+- `name_add_mac_suffix: true` is enabled: devices advertise/host as
+  `energy-pebble-<last 6 MAC hex>`. The BLE picker distinguishes neighboring
+  Pebbles (and other ESPHome devices), and the page verifies the picked
+  device against the QR's `d=` (warns on mismatch).
+  ⚠️ Side effect on fielded devices after OTA: hostname/mDNS changes from
+  `energy-pebble.local` to `energy-pebble-xxxxxx.local` (AP SSID and backend
+  X-Device-ID identity are unchanged; OTA is pull-based and unaffected).
+- Intended full flow once the backend ships (stub marked in
+  `setup/index.html`): login → claim (`POST /api/devices/claim` with id +
+  secret) → provision Wi-Fi (BLE or captive portal — claiming needs no
+  Bluetooth, so iPhone works too) → page polls a device-status endpoint
+  until the device phones home → "connected and linked to your account".
+  Claiming stays a **skippable step**, not a wall: re-provisioning after a
+  router change or setup-by-a-caretaker must keep working without login.
+- Backend work (other repo): per-device secrets at manufacturing, claim
+  endpoint, device-status endpoint, sticker printing.
+
+ESPHome's Improv has no device-side `next_url` option; the dashboard link on
+the page is the hand-off.
 
 ## Security notes
 
@@ -132,7 +152,9 @@ Nothing below has run on hardware — this branch was compile-checked only
 
 1. **Improv BLE end-to-end** on Android Chrome and desktop Chrome/Edge via
    `setup/index.html` (serve over HTTPS or localhost): device appears as
-   `energy-pebble`, credentials apply, success screen shows device URL.
+   `energy-pebble-xxxxxx` (MAC suffix), credentials apply, success screen
+   shows device URL; QR deep-link (`?d=...`) shows the device chip and the
+   wrong-device warning fires when picking a non-matching Pebble.
 2. **Captive portal on iOS Safari**: portal auto-opens after joining
    "Energy Pebble", provisioning works, phone falls back to home Wi-Fi.
 3. **LED state transitions**: fresh device → blue; during connect → yellow;
