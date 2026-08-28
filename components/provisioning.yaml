@@ -1,0 +1,58 @@
+# Wi-Fi provisioning for Energy Pebble
+#
+# Two guided paths (see PROVISIONING.md):
+#   1. Improv BLE (esp32_improv)  - Android / desktop Chrome via Web Bluetooth
+#      companion page; also works from the factory bench over USB via
+#      improv_serial.
+#   2. Captive portal (SoftAP)    - universal fallback, defined in
+#      connectivity.yaml. Works on iOS Safari and every other phone browser.
+#
+# LED state feedback lives in boot.yaml (status_led loop reads the globals
+# and component states below).
+#
+# NOTE: post-provision redirect ("next_url") is intentionally NOT configured
+# here. ESPHome's Improv implementations advertise the device's own web
+# server URL after success; dashboard hand-off (https://energypebble.tdlx.nl)
+# is done by the companion web page after Improv reports success. Device to
+# account pairing is a separate, not-yet-built flow.
+
+globals:
+  # True while Improv (BLE or serial) is actively trying credentials it just
+  # received. Used by the status LED loop to show "connecting" instead of
+  # "error" while the AP is still up.
+  - id: improv_provisioning_active
+    type: bool
+    initial_value: 'false'
+
+# BLE stack - required by esp32_improv. Advertised device name comes from
+# esphome.name ("energy-pebble").
+esp32_ble_server:
+
+esp32_improv:
+  # No physical button on the Pebble, so no authorizer. The BLE service is
+  # only advertised while the device has no Wi-Fi connection, which limits
+  # the exposure window.
+  authorizer: none
+  on_provisioning:
+    - globals.set:
+        id: improv_provisioning_active
+        value: 'true'
+    - logger.log:
+        level: INFO
+        format: "Improv BLE: credentials received - trying to connect"
+  on_provisioned:
+    - globals.set:
+        id: improv_provisioning_active
+        value: 'false'
+    - logger.log:
+        level: INFO
+        format: "Improv BLE: provisioning complete - Wi-Fi connected"
+  on_stop:
+    - globals.set:
+        id: improv_provisioning_active
+        value: 'false'
+
+# Improv over the USB serial port (same protocol, no BLE needed). Lets the
+# factory / a technician provision from https://web.esphome.io-style tooling
+# or a self-hosted improv-wifi-sdk page over WebSerial.
+improv_serial:

@@ -2,6 +2,12 @@
 esphome:
   name: energy-pebble
   friendly_name: Energy Pebble
+  # Appends the last 3 MAC bytes to the device name: "energy-pebble-a1b2c3".
+  # Makes the BLE picker distinguish neighboring Pebbles (and other ESPHome
+  # devices), and lets the setup page verify the picked device against the
+  # QR-sticker device ID. NOTE: this renames the hostname/mDNS of fielded
+  # devices after OTA (energy-pebble.local -> energy-pebble-xxxxxx.local).
+  name_add_mac_suffix: true
   project:
     name: "thomaskgb.energy-pebble"
     version: !env_var version
@@ -41,6 +47,7 @@ logger:
 # Include all component configuration
 packages:
   connectivity: !include components/connectivity.yaml
+  provisioning: !include components/provisioning.yaml
   leds: !include components/leds.yaml
   api: !include components/api.yaml
   boot: !include components/boot.yaml

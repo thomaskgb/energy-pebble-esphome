@@ -1,6 +1,9 @@
 wifi:
-  power_save_mode: none  # Disable power saving for faster response
-  
+  # LIGHT is the minimum allowed alongside BLE (esp32_improv); NONE is
+  # rejected at config time. Slightly higher Wi-Fi latency, irrelevant for
+  # a device that polls every 15 minutes.
+  power_save_mode: light
+
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Energy Pebble"
