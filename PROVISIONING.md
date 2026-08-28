@@ -118,9 +118,18 @@ Decided design (page side implemented here; **backend not built yet**):
   pre-identified — no in-page QR scanner needed. The secret (not the MAC,
   which is enumerable) is what proves possession for claiming.
 - `name_add_mac_suffix: true` is enabled: devices advertise/host as
-  `energy-pebble-<last 6 MAC hex>`. The BLE picker distinguishes neighboring
-  Pebbles (and other ESPHome devices), and the page verifies the picked
-  device against the QR's `d=` (warns on mismatch).
+  `energy-pebble-<last 6 MAC hex>`.
+- **The BLE connect step is gated on identity**: the button stays locked
+  until the user scans the QR or types the device ID (full 12-hex MAC or
+  last-6 suffix, colons/case tolerated) into the "Which Pebble is this?"
+  field. The page then calls `requestDevice` itself, filtering on the Improv
+  service **and the exact name** `energy-pebble-<suffix>` — the browser
+  picker never offers neighboring Pebbles or arbitrary Improv/ESP32 devices.
+  (The SDK's stock launch button, which lists every Improv device, is no
+  longer used — only its provisioning dialog is; `launch-button.js` was
+  dropped from the vendored files.) Consequence: pre-suffix firmware
+  (plain `energy-pebble`) will not match the filter — bench-test devices
+  must run this branch's firmware.
   ⚠️ Side effect on fielded devices after OTA: hostname/mDNS changes from
   `energy-pebble.local` to `energy-pebble-xxxxxx.local` (AP SSID and backend
   X-Device-ID identity are unchanged; OTA is pull-based and unaffected).
@@ -151,10 +160,13 @@ Nothing below has run on hardware — this branch was compile-checked only
 (`esphome==2025.6.0`, exit 0, sizes above):
 
 1. **Improv BLE end-to-end** on Android Chrome and desktop Chrome/Edge via
-   `setup/index.html` (serve over HTTPS or localhost): device appears as
-   `energy-pebble-xxxxxx` (MAC suffix), credentials apply, success screen
-   shows device URL; QR deep-link (`?d=...`) shows the device chip and the
-   wrong-device warning fires when picking a non-matching Pebble.
+   `setup/index.html` (serve over HTTPS or localhost): connect button is
+   locked until QR scan / manual ID entry; after unlocking, the picker
+   shows **only** `energy-pebble-<suffix>`; credentials apply and the
+   success screen shows the device URL. Specifically verify the exact-name
+   `requestDevice` filter matches the 20-char advertised name (shortened
+   BLE advertisement names could make the device invisible — if so, fall
+   back to `namePrefix` + post-pick suffix check).
 2. **Captive portal on iOS Safari**: portal auto-opens after joining
    "Energy Pebble", provisioning works, phone falls back to home Wi-Fi.
 3. **LED state transitions**: fresh device → blue; during connect → yellow;

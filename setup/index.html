@@ -46,11 +46,12 @@
     ol { margin: 0.5rem 0 0; padding-left: 1.3rem; }
     ol li { margin-bottom: 0.55rem; }
     .hidden { display: none; }
-    improv-wifi-launch-button button, .bigbtn {
+    .bigbtn {
       display: inline-block; font-size: 1rem; padding: 0.7rem 1.6rem;
       border: none; border-radius: 8px; cursor: pointer;
       background: var(--blue); color: #fff; font-weight: 600;
     }
+    .bigbtn:disabled { opacity: 0.45; cursor: not-allowed; }
     .note { font-size: 0.85rem; color: #667; margin-top: 0.75rem; }
     .led-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
     .led-table td { padding: 0.4rem 0.5rem; border-top: 1px solid #eef; }
@@ -73,6 +74,13 @@
       background: #fdf3e7; border-left: 4px solid #e67e22;
       padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.9rem;
     }
+    .identify-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .identify-row input {
+      flex: 1; min-width: 0; font-size: 1rem; padding: 0.6rem 0.8rem;
+      border: 1px solid #ccd5e0; border-radius: 8px;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .identify-row input:focus { outline: 2px solid var(--blue); border-color: transparent; }
     .spinner {
       display: inline-block; width: 1.4rem; height: 1.4rem;
       border: 3px solid #d6e6f5; border-top-color: var(--blue);
@@ -100,29 +108,44 @@
     Setting up Pebble <strong id="device-chip-id"></strong>
   </p>
 
+  <!-- Identity fallback when the page wasn't opened via the QR sticker -->
+  <section class="card" id="identify-card">
+    <h2>Which Pebble is this?</h2>
+    <p>Scan the <strong>QR code on the sticker</strong> with your camera app
+    — it brings you right back here. Or type the device ID from the sticker
+    (letters and numbers, no colons):</p>
+    <form id="identify-form" class="identify-row">
+      <input id="device-id-input" inputmode="text" autocomplete="off"
+             spellcheck="false" placeholder="e.g. a1b2c3d4e5f6"
+             aria-label="Device ID">
+      <button type="submit" class="bigbtn">Use&nbsp;ID</button>
+    </form>
+    <p class="note hidden" id="device-id-error">That doesn't look like a
+    Pebble ID — it's 12 letters/numbers (or the last 6). You can also skip
+    this and just connect below.</p>
+    <p class="note">No sticker at hand? Skip this — you can still connect
+    your Pebble below.</p>
+  </section>
+
   <!-- Path 1: Web Bluetooth (Chrome / Edge on Android & desktop) -->
   <section class="card hidden" id="ble-card">
     <h2>Connect with one tap</h2>
-    <p>Your browser can talk to the Pebble directly. Tap the button, pick
-    <strong>energy-pebble</strong> from the list, then choose your Wi-Fi
-    network and enter its password.</p>
+    <p>Your browser talks to the Pebble directly. Tap the button, confirm
+    your Pebble in the window that opens, then choose your Wi-Fi network
+    and enter its password.</p>
     <div class="ble-action">
-      <improv-wifi-launch-button id="launch-btn">
-        <button slot="activate" class="bigbtn">Connect Energy Pebble</button>
-      </improv-wifi-launch-button>
+      <button id="connect-btn" class="bigbtn" disabled>Connect Energy Pebble</button>
     </div>
+    <p class="note" id="gate-note">First scan the QR code on the sticker (or
+    type its ID above) — that unlocks this button, and your browser will
+    only offer <strong>your</strong> Pebble.</p>
     <p class="note hidden" id="ble-status" role="status">
       <span class="spinner" aria-hidden="true"></span>
-      Scanning… a window lists nearby Pebbles. Make sure yours is
+      Scanning… a window will show your Pebble. Make sure it is
       <strong>plugged in, close by, and slowly pulsing blue</strong>, then
-      select <strong>energy-pebble</strong> and tap <em>Pair</em>. If the
-      list stays empty or you closed the window, unplug the Pebble, plug it
-      back in, and tap the button again — or use the manual steps below.
-    </p>
-    <p class="warn hidden" id="mismatch-note">
-      The device you picked doesn't match the QR code you scanned. If you
-      have several Pebbles, pick the one ending in
-      <strong id="mismatch-suffix"></strong> — it's on the sticker.
+      select it and tap <em>Pair</em>. If it doesn't appear or you closed
+      the window, unplug the Pebble, plug it back in, and tap the button
+      again — or use the manual steps below.
     </p>
     <p class="note">Doesn't work? Use the manual steps below — they work on
     every phone.</p>
@@ -169,61 +192,106 @@
   // identity, e.g. /setup/?d=a1b2c3d4e5f6&s=<per-device-secret>. Scanning
   // with the phone camera lands here with the device pre-identified.
   const params = new URLSearchParams(location.search);
-  const qrDeviceId = (params.get("d") || "").toLowerCase();
-  const qrSuffix = qrDeviceId.slice(-6);
   const claimSecret = params.get("s") || "";
-  if (qrDeviceId) {
+  let deviceId = "";
+  let qrSuffix = "";
+  let onIdentified = () => {};  // set by the BLE block to unlock its button
+
+  // Accepts a full 12-hex device ID or its last-6 suffix; tolerates colons,
+  // dashes, spaces and uppercase as people copy MACs in many formats.
+  const setDeviceId = (raw) => {
+    const clean = (raw || "").toLowerCase().replace(/[^0-9a-f]/g, "");
+    if (clean.length !== 12 && clean.length !== 6) return false;
+    deviceId = clean;
+    qrSuffix = clean.slice(-6);
     document.getElementById("device-chip-id").textContent = qrSuffix;
     document.getElementById("device-chip").classList.remove("hidden");
-  }
+    document.getElementById("identify-card").classList.add("hidden");
+    // Keep the ID across a reload / share of the URL.
+    const url = new URL(location);
+    url.searchParams.set("d", clean);
+    history.replaceState(null, "", url);
+    onIdentified();
+    return true;
+  };
+
+  setDeviceId(params.get("d"));
+
+  // Manual fallback for users who opened the page without scanning the QR.
+  document.getElementById("identify-form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const ok = setDeviceId(document.getElementById("device-id-input").value);
+    document.getElementById("device-id-error").classList.toggle("hidden", ok);
+  });
 
   // STUB - account linking (claim API, backend repo, not built yet):
-  // once it ships, when qrDeviceId && claimSecret are present:
+  // once it ships, when deviceId && claimSecret are present:
   //   1. ensure the user is logged in (redirect to dashboard login and back),
-  //   2. POST /api/devices/claim {device_id: qrDeviceId, secret: claimSecret},
+  //   2. POST /api/devices/claim {device_id: deviceId, secret: claimSecret},
   //   3. after provisioning, poll /api/devices/<id>/status until the device
   //      phones home, then show "connected and linked to your account".
-  // Until then the page only uses the QR to label and verify the device.
+  // Until then the page only uses the identity to label and verify the
+  // device. Note: manual ID entry carries no secret, so claiming will
+  // require the QR (or typing the sticker's setup code) once it exists.
 
   // Show the one-tap Bluetooth path only where Web Bluetooth exists
   // (Chrome/Edge on Android & desktop). iOS Safari and Firefox fall
   // through to the always-visible captive portal steps.
   if (navigator.bluetooth && window.isSecureContext) {
-    await import("./vendor/improv-wifi-sdk/launch-button.js");
     document.getElementById("ble-card").classList.remove("hidden");
     document.getElementById("portal-title").textContent =
       "Or connect via the setup network";
-    // The SDK opens the browser's device picker silently and closes without
-    // a message when it is cancelled or finds nothing. Show a spinner and
-    // guidance as soon as the user taps, so they are never left staring at
-    // an empty picker. Once a device is picked the SDK appends its own
-    // dialog and fires "state-changed" on the launch button - hand off to it.
-    const btn = document.getElementById("launch-btn");
+
+    const btn = document.getElementById("connect-btn");
+    const gateNote = document.getElementById("gate-note");
     const status = document.getElementById("ble-status");
     const spinner = status.querySelector(".spinner");
+
+    // GATE: the connect button stays locked until the device identity is
+    // known (QR scan or manual entry). The Bluetooth request then filters
+    // on the exact advertised name "energy-pebble-<suffix>"
+    // (name_add_mac_suffix in firmware), so the browser's picker never
+    // offers neighboring Pebbles or arbitrary Improv/ESP32 devices.
+    const updateGate = () => {
+      btn.disabled = !qrSuffix;
+      gateNote.classList.toggle("hidden", !!qrSuffix);
+    };
+    updateGate();
+    onIdentified = updateGate;
+
+    // Improv BLE service UUID (same one the vendored SDK filters on).
+    const IMPROV_SERVICE = "00467768-6228-2272-4663-277478268000";
     let scanTimeout;
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       status.classList.remove("hidden");
       spinner.classList.remove("hidden");
       clearTimeout(scanTimeout);
-      // If no device gets picked, stop implying progress after a while;
-      // the advice text stays.
+      // If nothing gets picked, stop implying progress after a while.
       scanTimeout = setTimeout(() => spinner.classList.add("hidden"), 25000);
-    });
-    btn.addEventListener("state-changed", () => {
-      clearTimeout(scanTimeout);
-      status.classList.add("hidden");
-      // With the QR identity known, check the picked device against it.
-      // Firmware advertises "energy-pebble-<last 6 MAC hex>"
-      // (name_add_mac_suffix), so a mismatch means the wrong Pebble.
-      if (qrSuffix) {
-        const dialog = document.querySelector("improv-wifi-provision-dialog");
-        const name = (dialog?.device?.name || "").toLowerCase();
-        const mismatch = name.includes("-") && !name.endsWith(qrSuffix);
-        document.getElementById("mismatch-suffix").textContent = qrSuffix;
-        document.getElementById("mismatch-note")
-          .classList.toggle("hidden", !mismatch);
+      // Load the vendored SDK's provisioning dialog, then drive it with a
+      // device from our own filtered request (the stock launch button
+      // offers every Improv device, which the gate exists to prevent).
+      await import("./vendor/improv-wifi-sdk/provision-dialog-336721cc.js");
+      let device = null;
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{
+            services: [IMPROV_SERVICE],
+            name: `energy-pebble-${qrSuffix}`,
+          }],
+        });
+      } catch (err) {
+        console.error("No device selected", err);
       }
+      clearTimeout(scanTimeout);
+      spinner.classList.add("hidden");
+      if (!device) return;  // cancelled or not found; the advice text stays
+      status.classList.add("hidden");
+      const dialog = document.createElement("improv-wifi-provision-dialog");
+      dialog.device = device;
+      dialog.stateUpdateCallback = (state) =>
+        btn.dispatchEvent(new CustomEvent("state-changed", { detail: state }));
+      document.body.appendChild(dialog);
     });
   }
 </script>
