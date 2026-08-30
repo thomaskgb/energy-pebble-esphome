@@ -11,7 +11,7 @@ Shows hourly electricity prices using colors:
 The outer ring shows the next 8 hours, center LED shows right now.
 
 ## Hardware
-- ESP32 Lolin Mini C3
+- ESP32-S3-Zero
 - 24-LED ring matrix 
 - Single center LED
 - 3D-printed white housing
