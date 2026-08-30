@@ -6,96 +6,332 @@
   <title>Energy Pebble – Wi-Fi Setup</title>
   <!--
     Companion setup page for the Energy Pebble.
-    CANONICAL SOURCE: energy-pebble-esphome repo, setup/. A verbatim copy is
-    deployed as static/setup/ in the energy-pebble-api repo (served by Caddy
-    at https://energypebble.tdlx.nl/setup/) - edit here, then re-sync.
+    CANONICAL SOURCE for the standalone page: this repo, setup/. It stays
+    self-contained so it can be dropped on any static host (PROVISIONING.md).
+    The energy-pebble-api repo carries a SEPARATE, translated variant at
+    static/setup/ that loads the shared design system and the i18n catalogs;
+    it is deployed at https://energypebble.tdlx.nl/setup/. The two are no
+    longer verbatim copies: keep the markup and the wording in step by hand,
+    and never overwrite one with the other.
     Web Bluetooth only works on HTTPS or localhost. The Improv SDK and jsQR
     are vendored (self-hosted); no third-party requests are made.
   -->
   <style>
-    :root {
-      --green: #2ecc40;
-      --yellow: #f1c40f;
-      --red: #e74c3c;
-      --blue: #3498db;
-      --ink: #223;
-      --paper: #f7f8fa;
-    }
-    * { box-sizing: border-box; }
+  :root {
+      color-scheme: light dark;
+
+      /* Neutral ramp, cool grey: used for every surface, border and text tone */
+      --grey-0:   #ffffff;
+      --grey-25:  #fbfcfd;
+      --grey-50:  #f6f8fa;
+      --grey-100: #eef1f5;
+      --grey-200: #e2e7ee;
+      --grey-300: #cbd3de;
+      --grey-400: #9aa5b4;
+      --grey-500: #6b7686;
+      --grey-600: #4d5765;
+      --grey-700: #39424e;
+      --grey-800: #262d38;
+      --grey-900: #171c24;
+      --grey-950: #0f1319;
+
+      /* Brand green */
+      --brand-50:  #e8f6ef;
+      --brand-100: #cbead9;
+      --brand-200: #9bd7ba;
+      --brand-400: #34a173;
+      --brand-500: #16815a;
+      --brand-600: #106145;
+      --brand-700: #0f5b3e;
+
+      /* Price signal: the pebble's own language */
+      --signal-green:  #1e9e63;
+      --signal-yellow: #d69112;
+      --signal-red:    #d4453c;
+      --signal-green-soft:  #e6f5ed;
+      --signal-yellow-soft: #fdf3e0;
+      --signal-red-soft:    #fdeceb;
+      --signal-green-ink:   #0f5b3e;
+      --signal-yellow-ink:  #8a5a04;
+      --signal-red-ink:     #96261f;
+
+      /* Support */
+      --info-500:   #2f6fd0;
+      --info-soft:  #eaf1fc;
+      --info-ink:   #1c4a90;
+      --danger-500: #d4453c;
+      --danger-soft:#fdeceb;
+      --danger-ink: #96261f;
+
+      /* Semantic surfaces and text (light theme) */
+      --bg:            var(--grey-50);
+      --surface:       var(--grey-0);
+      --surface-sunken: var(--grey-100);
+      --surface-hover: var(--grey-50);
+      --border:        var(--grey-200);
+      --border-strong: var(--grey-300);
+      --text:          var(--grey-900);
+      --text-secondary:var(--grey-600);
+      --text-muted:    var(--grey-500);
+      --text-inverse:  var(--grey-0);
+      --accent:        var(--brand-500);
+      --accent-hover:  var(--brand-600);
+      --accent-soft:   var(--brand-50);
+      --accent-ink:    var(--brand-700);
+      /* Text drawn on top of --accent. Light mode's accent is dark enough for
+         white; dark mode's is a bright green, which needs dark text to stay
+         readable. */
+      --on-accent:     #ffffff;
+
+      /* Typography. System stack: no webfont round-trip, native on every OS */
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                   "Liberation Mono", monospace;
+
+      --text-xs:   0.75rem;   /* 12: labels, meta */
+      --text-sm:   0.8125rem; /* 13: dense UI text */
+      --text-base: 0.9375rem; /* 15: interface default */
+      --text-md:   1rem;      /* 16: body copy */
+      --text-lg:   1.125rem;  /* 18: lead paragraphs */
+      --text-xl:   1.25rem;   /* 20: card titles */
+      --text-2xl:  1.5rem;    /* 24: section titles */
+      --text-3xl:  1.875rem;  /* 30: page titles */
+      --text-4xl:  2.5rem;    /* 40: hero */
+
+      --leading-tight: 1.2;
+      --leading-snug:  1.4;
+      --leading-normal:1.6;
+
+      --weight-normal:   400;
+      --weight-medium:   500;
+      --weight-semibold: 600;
+      --weight-bold:     700;
+
+      /* Spacing, 4px base */
+      --space-1:  0.25rem;
+      --space-2:  0.5rem;
+      --space-3:  0.75rem;
+      --space-4:  1rem;
+      --space-5:  1.25rem;
+      --space-6:  1.5rem;
+      --space-8:  2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+      --space-16: 4rem;
+
+      /* Radii */
+      --radius-sm:   6px;
+      --radius-md:   8px;
+      --radius-lg:   12px;
+      --radius-xl:   16px;
+      --radius-full: 999px;
+
+      /* Elevation: restrained, borders do most of the separating */
+      --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+      --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+      --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04);
+      --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 8px rgba(16, 24, 40, 0.05);
+
+      /* Motion */
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --duration-fast: 120ms;
+      --duration:      180ms;
+
+      /* Layout */
+      --page-width: 1120px;
+      --header-height: 60px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+      :root {
+          --bg:            var(--grey-950);
+          --surface:       var(--grey-900);
+          --surface-sunken: var(--grey-800);
+          --surface-hover: var(--grey-800);
+          --border:        #2a323d;
+          --border-strong: #3b4553;
+          --text:          #eef1f5;
+          --text-secondary:#aeb8c6;
+          --text-muted:    #8791a0;
+          --text-inverse:  var(--grey-950);
+          --accent:        var(--brand-400);
+          --accent-hover:  #46b585;
+          --accent-soft:   rgba(52, 161, 115, 0.14);
+          --accent-ink:    #7ed2ab;
+          --on-accent:     var(--grey-950);
+
+          --signal-green:  #35b077;
+          --signal-yellow: #e0a52e;
+          --signal-red:    #e4645b;
+          --signal-green-soft:  rgba(53, 176, 119, 0.16);
+          --signal-yellow-soft: rgba(224, 165, 46, 0.16);
+          --signal-red-soft:    rgba(228, 100, 91, 0.16);
+          --signal-green-ink:   #7ed2ab;
+          --signal-yellow-ink:  #efc470;
+          --signal-red-ink:     #f2a19a;
+
+          --info-500:  #6fa2e8;
+          --info-soft: rgba(111, 162, 232, 0.16);
+          --info-ink:  #a9c8f2;
+          --danger-500:#e4645b;
+          --danger-soft: rgba(228, 100, 91, 0.16);
+          --danger-ink:#f2a19a;
+
+          /* Shadows read as noise on dark surfaces; keep them for depth only */
+          --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+          --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+          --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+          --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+      }
+  }
+
+    /* Minimal base layer, mirroring base.css in the API repo. Inlined because
+       this page must stay droppable on any static host with no external
+       requests (see PROVISIONING.md). */
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; }
+
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--ink);
-      background: var(--paper);
-      line-height: 1.55;
+      min-height: 100vh;
+      font-family: var(--font-sans);
+      font-size: var(--text-md);
+      line-height: var(--leading-normal);
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
     }
-    main { max-width: 34rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
-    header { text-align: center; padding: 2rem 0 0.5rem; }
+
+    h1, h2, h3 {
+      line-height: var(--leading-tight);
+      font-weight: var(--weight-semibold);
+      letter-spacing: -0.011em;
+      color: var(--text);
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+    img, svg, video { display: block; max-width: 100%; }
+
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+    .hidden { display: none !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+
+    main { max-width: 34rem; margin: 0 auto; padding: var(--space-5) var(--space-5) var(--space-12); }
+
+    header { text-align: center; padding: var(--space-10) 0 var(--space-2); }
+
+    /* A miniature of the device's own light, so the page opens on the thing
+       the reader is holding. */
     .pebble {
-      width: 72px; height: 72px; border-radius: 50%;
-      margin: 0 auto 0.75rem;
-      background: radial-gradient(circle at 50% 45%, var(--green) 0 22%, #fff 26% 55%, var(--yellow) 58% 100%);
-      box-shadow: 0 4px 14px rgba(0,0,0,.15);
+      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto var(--space-3);
+      background: radial-gradient(circle at 50% 45%,
+                  var(--signal-green) 0 22%, var(--surface) 26% 55%, var(--signal-yellow) 58% 100%);
+      box-shadow: var(--shadow-md);
     }
-    h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
-    .sub { color: #667; margin: 0 0 1.5rem; text-align: center; }
+
+    h1 { font-size: var(--text-2xl); margin: 0 0 var(--space-1); }
+    .sub { color: var(--text-secondary); margin: 0 0 var(--space-6); text-align: center; }
+
+    /* .card carries its own surface here; the API repo's copy inherits it
+       from base.css. */
     .card {
-      background: #fff; border-radius: 12px; padding: 1.25rem 1.25rem 1.4rem;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1.25rem;
+      padding: var(--space-5);
+      margin-bottom: var(--space-5);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xs);
     }
-    .card h2 { font-size: 1.1rem; margin: 0 0 0.6rem; }
-    ol { margin: 0.5rem 0 0; padding-left: 1.3rem; }
-    ol li { margin-bottom: 0.55rem; }
-    .hidden { display: none; }
+    .card h2 { font-size: var(--text-md); margin: 0 0 var(--space-3); }
+
+    ol { margin: var(--space-2) 0 0; padding-left: 1.3rem; color: var(--text-secondary); }
+    ol li { margin-bottom: var(--space-2); }
+    ol strong, ol code { color: var(--text); }
+
+    /* The one primary action per step */
     .bigbtn {
-      display: inline-block; font-size: 1rem; padding: 0.7rem 1.6rem;
-      border: none; border-radius: 8px; cursor: pointer;
-      background: var(--blue); color: #fff; font-weight: 600;
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+      height: 42px; padding: 0 var(--space-6);
+      font: inherit; font-size: var(--text-md); font-weight: var(--weight-medium);
+      color: var(--on-accent); background: var(--accent);
+      border: 1px solid var(--accent); border-radius: var(--radius-md);
+      cursor: pointer; text-decoration: none;
+      transition: background var(--duration-fast) var(--ease);
     }
+    .bigbtn:hover { background: var(--accent-hover); color: var(--on-accent); }
     .bigbtn:disabled { opacity: 0.45; cursor: not-allowed; }
-    .note { font-size: 0.85rem; color: #667; margin-top: 0.75rem; }
-    .led-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .led-table td { padding: 0.4rem 0.5rem; border-top: 1px solid #eef; }
+
+    .note { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-3); }
+
+    .led-table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
+    .led-table td { padding: var(--space-2); border-top: 1px solid var(--border); color: var(--text-secondary); }
+    .led-table td:first-child { white-space: nowrap; color: var(--text); }
+    .led-table tr:first-child td { border-top: none; }
+
     .dot {
       display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 50%;
-      vertical-align: -0.1rem; margin-right: 0.35rem;
+      vertical-align: -0.1rem; margin-right: var(--space-2);
     }
+
     .pulse { animation: pulse 2s ease-in-out infinite; }
-    @media (prefers-reduced-motion: reduce) { .pulse, .spinner { animation: none; } }
-    @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
-    .ble-action { text-align: center; margin: 0.75rem 0 0.25rem; }
-    .device-chip {
-      text-align: center; margin: -0.75rem 0 1.25rem;
-    }
+    @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+    .ble-action { text-align: center; margin: var(--space-3) 0 var(--space-1); }
+
+    .device-chip { text-align: center; margin: calc(-1 * var(--space-3)) 0 var(--space-5); }
     .device-chip strong {
-      background: #e3f0fb; color: #1b5e93; padding: 0.25rem 0.7rem;
-      border-radius: 999px; font-family: ui-monospace, Menlo, monospace;
+      display: inline-block;
+      padding: var(--space-1) var(--space-3);
+      font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-medium);
+      background: var(--info-soft); color: var(--info-ink);
+      border-radius: var(--radius-full);
     }
+
     .warn {
-      background: #fdf3e7; border-left: 4px solid #e67e22;
-      padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.9rem;
+      display: flex; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-base); color: var(--text);
+      background: var(--signal-yellow-soft);
+      border-left: 3px solid var(--signal-yellow);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
     }
-    .scanner { margin-top: 0.75rem; text-align: center; }
-    .scanner video {
-      width: 100%; max-height: 60vh; border-radius: 10px; background: #000;
-    }
-    .identify-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .warn--ok { background: var(--signal-green-soft); border-left-color: var(--signal-green); }
+
+    .scanner { margin-top: var(--space-3); text-align: center; }
+    .scanner video { width: 100%; max-height: 60vh; border-radius: var(--radius-lg); background: #000; }
+
+    .identify-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
     .identify-row input {
-      flex: 1; min-width: 0; font-size: 1rem; padding: 0.6rem 0.8rem;
-      border: 1px solid #ccd5e0; border-radius: 8px;
-      font-family: ui-monospace, Menlo, monospace;
+      flex: 1; min-width: 0;
+      padding: 0 var(--space-3); height: 42px;
+      font-family: var(--font-mono); font-size: var(--text-md);
+      color: var(--text); background: var(--surface);
+      border: 1px solid var(--border-strong); border-radius: var(--radius-md);
     }
-    .identify-row input:focus { outline: 2px solid var(--blue); border-color: transparent; }
-    .spinner {
-      display: inline-block; width: 1.4rem; height: 1.4rem;
-      border: 3px solid #d6e6f5; border-top-color: var(--blue);
-      border-radius: 50%; vertical-align: middle;
-      animation: spin 0.9s linear infinite;
+    .identify-row input:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    code { background: #eef1f5; padding: 0.1rem 0.35rem; border-radius: 4px; }
-    a { color: var(--blue); }
-    footer { text-align: center; font-size: 0.8rem; color: #99a; }
+
+    .spinner { width: 1.2rem; height: 1.2rem; vertical-align: middle; margin-right: var(--space-2); display: inline-block; }
+
+    code {
+      padding: 1px 5px;
+      background: var(--surface-sunken); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    footer { text-align: center; font-size: var(--text-sm); color: var(--text-muted); }
   </style>
 </head>
 <body>
@@ -105,7 +341,7 @@
     <h1>Energy Pebble setup</h1>
   </header>
   <p class="sub">Plug in your Energy Pebble. When the middle light slowly
-  pulses <strong style="color:var(--blue)">blue</strong>, it is ready to be
+  pulses <strong style="color:var(--info-500)">blue</strong>, it is ready to be
   connected to your Wi-Fi.</p>
 
   <!-- Shown when the page was opened from a device's QR sticker -->
@@ -125,8 +361,8 @@
   </section>
 
   <!-- Success banner once the backend reports the device online -->
-  <p class="warn hidden" id="linked-note" style="border-left-color:#2ecc40;background:#eafaf0">
-    ✅ Your Pebble is online<span id="linked-account-part"> and linked to
+  <p class="warn warn--ok hidden" id="linked-note">
+    Your Pebble is online<span id="linked-account-part"> and linked to
     your account</span>. It will start showing energy prices shortly.
   </p>
 
@@ -136,7 +372,11 @@
     <p>Scan the <strong>QR code on the sticker</strong>, or type the device
     ID printed next to it:</p>
     <div class="ble-action">
-      <button id="scan-btn" class="bigbtn">📷 Scan QR code</button>
+      <button id="scan-btn" class="bigbtn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17"
+             fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+        Scan QR code</button>
     </div>
     <div class="scanner hidden" id="scanner">
       <video id="scanner-video" playsinline muted></video>
@@ -144,7 +384,7 @@
       Pebble. <a href="#" id="scanner-close">Cancel</a></p>
     </div>
     <p class="note hidden" id="scanner-error">Camera not available or
-    blocked — type the ID instead:</p>
+    blocked. Type the ID instead:</p>
     <form id="identify-form" class="identify-row">
       <input id="device-id-input" inputmode="text" autocomplete="off"
              spellcheck="false" placeholder="e.g. a1b2c3d4e5f6"
@@ -152,9 +392,9 @@
       <button type="submit" class="bigbtn">Use&nbsp;ID</button>
     </form>
     <p class="note hidden" id="device-id-error">That doesn't look like a
-    Pebble ID — it's 12 letters/numbers (or the last 6). You can also skip
+    Pebble ID; it's 12 letters/numbers (or the last 6). You can also skip
     this and just connect below.</p>
-    <p class="note">No sticker at hand? Skip this — you can still connect
+    <p class="note">No sticker at hand? Skip this; you can still connect
     your Pebble below.</p>
   </section>
 
@@ -173,9 +413,9 @@
       <strong>plugged in, close by, and slowly pulsing blue</strong>, then
       select it and tap <em>Pair</em>. If it doesn't appear or you closed
       the window, unplug the Pebble, plug it back in, and tap the button
-      again — or use the manual steps below.
+      again, or use the manual steps below.
     </p>
-    <p class="note">Doesn't work? Use the manual steps below — they work on
+    <p class="note">Doesn't work? Use the manual steps below; they work on
     every phone.</p>
   </section>
 
@@ -189,7 +429,7 @@
           go to <code>192.168.4.1</code>.</li>
       <li>Pick your home Wi-Fi network, type its password, and press
           <strong>Save</strong>.</li>
-      <li>Your phone will drop off the setup network — that's normal. The
+      <li>Your phone will drop off the setup network. That's normal. The
           Pebble is now joining your Wi-Fi.</li>
     </ol>
   </section>
@@ -198,13 +438,13 @@
   <section class="card">
     <h2>What the middle light means</h2>
     <table class="led-table">
-      <tr><td><span class="dot pulse" style="background:var(--blue)"></span>Blue, slow pulse</td>
-          <td>Waiting for setup — follow the steps above</td></tr>
-      <tr><td><span class="dot pulse" style="background:var(--yellow)"></span>Yellow, slow pulse</td>
+      <tr><td><span class="dot pulse" style="background:var(--info-500)"></span>Blue, slow pulse</td>
+          <td>Waiting for setup; follow the steps above</td></tr>
+      <tr><td><span class="dot pulse" style="background:var(--signal-yellow)"></span>Yellow, slow pulse</td>
           <td>Connecting to your Wi-Fi</td></tr>
-      <tr><td><span class="dot pulse" style="background:var(--red)"></span>Red, slow blink</td>
-          <td>Couldn't connect — password may be wrong. Redo the steps above</td></tr>
-      <tr><td><span class="dot" style="background:var(--green)"></span>Steady colors</td>
+      <tr><td><span class="dot pulse" style="background:var(--signal-red)"></span>Red, slow blink</td>
+          <td>Couldn't connect; password may be wrong. Redo the steps above</td></tr>
+      <tr><td><span class="dot" style="background:var(--signal-green)"></span>Steady colors</td>
           <td>Done! The Pebble is showing energy prices</td></tr>
     </table>
   </section>
